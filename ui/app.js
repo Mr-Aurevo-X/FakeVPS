@@ -7,14 +7,18 @@ function setHealth(id, state) {
   el.classList.remove("ok", "warn");
   if (state === "ok") el.classList.add("ok");
   if (state === "warn") el.classList.add("warn");
+  const label = $(`${id}-state`);
+  if (label) {
+    label.textContent = state === "ok" ? "ready" : state === "warn" ? "booting" : "off";
+  }
 }
 
 function fmtUptime(sec) {
   const n = Number(sec) || 0;
-  if (!n) return "Uptime —";
+  if (!n) return "—";
   const h = Math.floor(n / 3600);
   const m = Math.floor((n % 3600) / 60);
-  return `Uptime ${h}h ${m}m`;
+  return `${h}h ${m}m`;
 }
 
 async function api(path, opts) {
@@ -231,6 +235,10 @@ function render(s) {
   const starting = Boolean(s.starting);
   const online = Boolean(s.running && s.ssh);
   const booting = Boolean(starting || (s.running && !s.ssh));
+  document.body.classList.toggle("is-online", online && !starting);
+  document.body.classList.toggle("is-booting", booting);
+  document.body.classList.toggle("is-offline", !online && !booting);
+  $("btn-up").classList.toggle("idle-glow", !online && !booting);
   $("pill").classList.toggle("online", online && !starting);
   $("pill").classList.toggle("booting", booting);
   $("pill").classList.toggle("offline", !online && !booting);

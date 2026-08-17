@@ -10,10 +10,12 @@
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
 </head>
-<body>
+<body class="is-offline">
   <div class="vignette" aria-hidden="true"></div>
   <div class="grain" aria-hidden="true"></div>
   <div class="aurora" aria-hidden="true"></div>
+  <div class="rack-floor" aria-hidden="true"></div>
+  <div class="scanlines" aria-hidden="true"></div>
   <header class="top">
     <div class="brand">
       <span class="mark" aria-hidden="true">F</span>
@@ -28,30 +30,50 @@
       <span id="pill-label">offline</span>
     </div>
   </header>
+  <div class="rail" aria-hidden="true"></div>
 
   <main class="grid">
     <article class="tile tile-power">
       <h2>Power</h2>
-      <p class="muted" id="uptime">Uptime —</p>
+      <p class="uptime-label">Uptime</p>
+      <p class="uptime-val" id="uptime">—</p>
       <div class="actions">
-        <button type="button" id="btn-up" class="btn primary">Start</button>
+        <button type="button" id="btn-up" class="btn primary idle-glow">Start</button>
         <button type="button" id="btn-down" class="btn">Stop</button>
       </div>
     </article>
 
-    <article class="tile">
+    <article class="tile tile-node">
       <h2>Node</h2>
       <dl class="metrics">
-        <div><dt>RAM</dt><dd id="m-ram">6 GB</dd></div>
-        <div><dt>vCPU</dt><dd id="m-cpu">4</dd></div>
-        <div><dt>Disk</dt><dd id="m-disk">40 GB</dd></div>
-        <div><dt>Backend</dt><dd id="m-be">—</dd></div>
+        <div class="inst">
+          <dt>RAM</dt>
+          <dd id="m-ram">6 GB</dd>
+          <span class="bar" aria-hidden="true"><i id="bar-ram"></i></span>
+        </div>
+        <div class="inst">
+          <dt>vCPU</dt>
+          <dd id="m-cpu">4</dd>
+          <span class="bar" aria-hidden="true"><i id="bar-cpu"></i></span>
+        </div>
+        <div class="inst">
+          <dt>Disk</dt>
+          <dd id="m-disk">40 GB</dd>
+          <span class="bar" aria-hidden="true"><i id="bar-disk"></i></span>
+        </div>
+        <div class="inst">
+          <dt>Backend</dt>
+          <dd id="m-be">—</dd>
+        </div>
       </dl>
     </article>
 
     <article class="tile">
       <h2>SSH</h2>
-      <code class="cmd" id="ssh-cmd">ssh -p 2222 ubuntu@127.0.0.1</code>
+      <div class="term">
+        <div class="term-bar" aria-hidden="true"><span></span><span></span><span></span><em>console</em></div>
+        <code class="cmd"><span class="prompt">ubuntu@fakevps</span><span id="ssh-cmd">ssh -p 2222 ubuntu@127.0.0.1</span></code>
+      </div>
       <button type="button" class="btn ghost" id="btn-copy">Copy</button>
     </article>
 
@@ -70,17 +92,20 @@
     <article class="tile">
       <h2>Health</h2>
       <ul class="health">
-        <li id="h-ssh">SSH</li>
-        <li id="h-docker">Docker</li>
-        <li id="h-bot">Bot</li>
-        <li id="h-ui">Cockpit</li>
+        <li id="h-ssh"><span class="led"></span><span class="health-name">SSH</span><span class="health-state" id="h-ssh-state">off</span></li>
+        <li id="h-docker"><span class="led"></span><span class="health-name">Docker</span><span class="health-state" id="h-docker-state">off</span></li>
+        <li id="h-bot"><span class="led"></span><span class="health-name">Bot</span><span class="health-state" id="h-bot-state">off</span></li>
+        <li id="h-ui"><span class="led"></span><span class="health-name">Cockpit</span><span class="health-state" id="h-ui-state">off</span></li>
       </ul>
       <button type="button" class="btn ghost" id="btn-diag">Diagnostic</button>
     </article>
 
     <article class="tile tile-log">
       <h2>Activity</h2>
-      <pre id="log" class="log">checking node…</pre>
+      <div class="term term-log">
+        <div class="term-bar" aria-hidden="true"><span></span><span></span><span></span><em>journal</em></div>
+        <pre id="log" class="log">checking node…</pre>
+      </div>
     </article>
   </main>
 
