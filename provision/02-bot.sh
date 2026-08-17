@@ -54,6 +54,8 @@ Type=simple
 User=ubuntu
 WorkingDirectory=${APP}
 EnvironmentFile=-${APP}/.env
+Environment=CI=true
+Environment=npm_config_update_notifier=false
 ExecStart=${exec_start}
 Restart=always
 RestartSec=5
@@ -120,15 +122,32 @@ start_node_bot() {
   local exec_start=""
   if [[ -f pnpm-lock.yaml ]]; then
     export PATH="/usr/local/bin:${PATH}"
+    export CI=true
+    export npm_config_update_notifier=false
+    if [[ ! -f /home/ubuntu/.npmrc ]] || ! grep -q '^update-notifier=' /home/ubuntu/.npmrc; then
+      printf 'update-notifier=false\n' >>/home/ubuntu/.npmrc
+      chown ubuntu:ubuntu /home/ubuntu/.npmrc
+    fi
+    local pnpm_spec
+    pnpm_spec="$(python3 - <<'PY'
+import json
+from pathlib import Path
+raw = ""
+p = Path("package.json")
+if p.is_file():
+    raw = str(json.loads(p.read_text(encoding="utf-8")).get("packageManager") or "")
+print(raw if raw.startswith("pnpm@") else "pnpm@9.15.0")
+PY
+)"
     corepack enable >/dev/null 2>&1 || true
-    corepack prepare pnpm@9.15.0 --activate >/dev/null 2>&1 \
-      || corepack prepare pnpm@latest --activate
-    sudo -u ubuntu pnpm install
+    corepack prepare "$pnpm_spec" --activate >/dev/null 2>&1 \
+      || corepack prepare pnpm@9.15.0 --activate
+    sudo -u ubuntu env CI=true npm_config_update_notifier=false PATH="$PATH" pnpm install
     if grep -q '"db:migrate"' package.json; then
-      sudo -u ubuntu pnpm db:migrate || sudo -u ubuntu pnpm db:push || true
+      sudo -u ubuntu env CI=true PATH="$PATH" pnpm db:migrate || sudo -u ubuntu env CI=true PATH="$PATH" pnpm db:push || true
     fi
     if [[ -f apps/bot/package.json ]]; then
-      sudo -u ubuntu pnpm --filter "./apps/bot..." build || true
+      sudo -u ubuntu env CI=true PATH="$PATH" pnpm --filter "./apps/bot..." build || true
       exec_start="$(command -v pnpm) --filter ./apps/bot start"
     else
       exec_start="${start_cmd:-$(command -v pnpm) start}"
