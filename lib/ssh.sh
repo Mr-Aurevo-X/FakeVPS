@@ -119,6 +119,74 @@ print(json.dumps({
 PY
 }
 
+# Guest probe for cockpit status. Prints JSON only — never token values.
+guest_status_probe() {
+  guest_ssh python3 - <<'PY'
+import json
+import os
+import re
+import shutil
+import subprocess
+
+def run(cmd):
+    try:
+        return subprocess.check_output(cmd, stderr=subprocess.DEVNULL, text=True)
+    except (OSError, subprocess.CalledProcessError):
+        return ""
+
+docker_ok = shutil.which("docker") is not None
+services = []
+if docker_ok:
+    for line in run(["docker", "ps", "--format", "{{.Names}} {{.Status}}"]).splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        name, _, state = line.partition(" ")
+        if name:
+            services.append({"name": name, "state": state or "unknown"})
+
+bot_ok = False
+try:
+    if subprocess.run(
+        ["systemctl", "is-active", "--quiet", "discord-bot.service"],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    ).returncode == 0:
+        bot_ok = True
+        if not any(row.get("name") == "discord-bot" for row in services):
+            services.append({"name": "discord-bot", "state": "active"})
+except OSError:
+    pass
+if not bot_ok:
+    names = " ".join(row.get("name", "") for row in services)
+    if re.search(r"bot|worker|discord", names, re.I):
+        bot_ok = True
+
+token_present = False
+try:
+    with open("/home/ubuntu/app/.env", encoding="utf-8", errors="replace") as fh:
+        for line in fh:
+            if line.startswith("DISCORD_TOKEN=") and len(line.strip()) > len("DISCORD_TOKEN="):
+                token_present = True
+                break
+except OSError:
+    pass
+
+runtime = "none"
+script = "/home/ubuntu/fakevps-provision/detect-runtime.sh"
+if os.path.isfile(script):
+    runtime = (run(["bash", script, "/home/ubuntu/app"]) or "none").strip() or "none"
+
+print(json.dumps({
+    "docker": docker_ok,
+    "bot": bot_ok,
+    "services": services,
+    "token_present": token_present,
+    "runtime": runtime,
+}))
+PY
+}
+
 wait_ssh() {
   local timeout="${1:-180}"
   local i=0

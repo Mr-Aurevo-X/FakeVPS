@@ -82,13 +82,20 @@ def build(sample: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
     tx = parse_u64(sample.get("tx"))
     usage_usec = parse_u64(sample.get("usage_usec"))
     nxt = {"t": now, "usage_usec": usage_usec, "rx": rx, "tx": tx}
+    disk_app = round(float(sample.get("disk_app_gb") or 0), 1)
+    disk_docker = round(float(sample.get("disk_docker_gb") or 0), 1)
     if sample.get("mode") == "guest":
+        disk_used = round(float(sample.get("disk_used_gb") or 0), 1)
+        if disk_used <= 0 and (disk_app or disk_docker):
+            disk_used = round(disk_app + disk_docker, 1)
         metrics = {
             "ram_used_mb": int(sample.get("ram_used_mb") or 0),
             "ram_total_mb": int(sample.get("ram_total_mb") or 0),
             "load1": round(float(sample.get("load1") or 0), 2),
             "cpu_pct": min(100.0, float(sample.get("cpu_pct") or 0)),
-            "disk_used_gb": round(float(sample.get("disk_used_gb") or 0), 1),
+            "disk_used_gb": disk_used,
+            "disk_app_gb": disk_app,
+            "disk_docker_gb": disk_docker,
             "disk_total_gb": round(float(sample.get("disk_total_gb") or 0), 1),
             "containers": int(sample.get("containers") or 0),
             "pids": int(sample.get("pids") or 0),
@@ -119,12 +126,16 @@ def build(sample: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
         parse_u64(sample.get("memory_inactive_file")),
     )
     disk_used = float(sample.get("disk_used_gb") or 0)
+    if disk_used <= 0 and (disk_app or disk_docker):
+        disk_used = disk_app + disk_docker
     metrics = {
         "ram_used_mb": used_mb,
         "ram_total_mb": total_mb,
         "load1": load1,
         "cpu_pct": cpu_pct,
         "disk_used_gb": round(disk_used, 1),
+        "disk_app_gb": disk_app,
+        "disk_docker_gb": disk_docker,
         "disk_total_gb": round(disk_gb, 1),
         "containers": int(sample.get("containers") or 0),
         "pids": int(sample.get("pids") or 0),

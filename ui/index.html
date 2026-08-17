@@ -1,13 +1,10 @@
 <!DOCTYPE html>
 <!-- FakeVPS — Mr-Aurevo-X. Copyright (c) 2026 Mr-Aurevo-X -->
-<html lang="en">
+<html lang="fr">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>FakeVPS</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body class="is-offline">
@@ -20,35 +17,35 @@
     <div class="brand">
       <span class="mark" aria-hidden="true">F</span>
       <div>
-        <p class="eyebrow">Local rehearsal</p>
+        <p class="eyebrow">Répétition locale</p>
         <h1>FakeVPS</h1>
-        <p class="tag">Ubuntu node · 6 GB · 4 vCPU</p>
+        <p class="tag">Nœud Ubuntu · 6 Go · 4 vCPU</p>
       </div>
     </div>
     <div class="pill offline" id="pill">
       <span class="dot" id="dot"></span>
-      <span id="pill-label">offline</span>
+      <span id="pill-label">hors ligne</span>
     </div>
   </header>
   <div class="rail" aria-hidden="true"></div>
 
   <main class="grid">
     <article class="tile tile-power">
-      <h2>Power</h2>
-      <p class="uptime-label">Uptime</p>
+      <h2>Alimentation</h2>
+      <p class="uptime-label">Temps de marche</p>
       <p class="uptime-val" id="uptime">—</p>
       <div class="actions">
-        <button type="button" id="btn-up" class="btn primary idle-glow">Start</button>
-        <button type="button" id="btn-down" class="btn">Stop</button>
+        <button type="button" id="btn-up" class="btn primary idle-glow">Démarrer</button>
+        <button type="button" id="btn-down" class="btn">Arrêter</button>
       </div>
     </article>
 
     <article class="tile tile-node">
-      <h2>Node</h2>
+      <h2>Nœud</h2>
       <dl class="metrics">
         <div class="inst">
           <dt>RAM</dt>
-          <dd id="m-ram">6 GB</dd>
+          <dd id="m-ram">6 Go</dd>
           <span class="bar" aria-hidden="true"><i id="bar-ram"></i></span>
         </div>
         <div class="inst">
@@ -57,19 +54,19 @@
           <span class="bar" aria-hidden="true"><i id="bar-cpu"></i></span>
         </div>
         <div class="inst">
-          <dt>Disk</dt>
-          <dd id="m-disk">40 GB</dd>
+          <dt>Disque</dt>
+          <dd id="m-disk">40 Go</dd>
           <span class="bar" aria-hidden="true"><i id="bar-disk"></i></span>
         </div>
         <div class="inst">
-          <dt>Backend</dt>
+          <dt>Moteur</dt>
           <dd id="m-be">—</dd>
         </div>
       </dl>
     </article>
 
     <article class="tile tile-telem">
-      <h2>Telemetry</h2>
+      <h2>Télémétrie</h2>
       <p class="muted telem-note">Nœud ubuntu@fakevps seulement — pas le PC hôte</p>
       <div class="gauges" aria-hidden="true">
         <div class="gauge">
@@ -94,18 +91,19 @@
             <circle class="g-fill" id="g-disk" cx="60" cy="60" r="46"></circle>
           </svg>
           <strong id="g-disk-n">—</strong>
-          <span>Disk</span>
+          <span>Disque</span>
         </div>
       </div>
       <dl class="telem-stats">
-        <div><dt>RAM used</dt><dd id="t-ram">—</dd></div>
-        <div><dt>CPU load</dt><dd id="t-cpu">—</dd></div>
-        <div><dt>Disk</dt><dd id="t-disk">—</dd></div>
-        <div><dt>Containers</dt><dd id="t-ct">—</dd></div>
-        <div><dt>Processes</dt><dd id="t-pids">—</dd></div>
-        <div><dt>Net in</dt><dd id="t-rx">—</dd></div>
-        <div><dt>Net out</dt><dd id="t-tx">—</dd></div>
-        <div><dt>Samples</dt><dd id="t-n">—</dd></div>
+        <div><dt>RAM utilisée</dt><dd id="t-ram">—</dd></div>
+        <div><dt>Charge CPU</dt><dd id="t-cpu">—</dd></div>
+        <div><dt>App</dt><dd id="t-disk-app">—</dd></div>
+        <div><dt>Images Docker</dt><dd id="t-disk-docker">—</dd></div>
+        <div><dt>Conteneurs</dt><dd id="t-ct">—</dd></div>
+        <div><dt>Processus</dt><dd id="t-pids">—</dd></div>
+        <div><dt>Réseau in</dt><dd id="t-rx">—</dd></div>
+        <div><dt>Réseau out</dt><dd id="t-tx">—</dd></div>
+        <div><dt>Échantillons</dt><dd id="t-n">—</dd></div>
       </dl>
       <div class="charts">
         <figure>
@@ -117,7 +115,7 @@
           <svg class="spark" id="chart-cpu" viewBox="0 0 280 72" preserveAspectRatio="none"></svg>
         </figure>
         <figure>
-          <figcaption>Disk <em id="cap-disk">%</em></figcaption>
+          <figcaption>Disque <em id="cap-disk">%</em></figcaption>
           <svg class="spark" id="chart-disk" viewBox="0 0 280 72" preserveAspectRatio="none"></svg>
         </figure>
       </div>
@@ -129,24 +127,35 @@
         <div class="term-bar" aria-hidden="true"><span></span><span></span><span></span><em>console</em></div>
         <code class="cmd"><span class="prompt">ubuntu@fakevps</span><span id="ssh-cmd">ssh -p 2222 ubuntu@127.0.0.1</span></code>
       </div>
-      <button type="button" class="btn ghost" id="btn-copy">Copy</button>
+      <div class="actions ssh-actions">
+        <button type="button" class="btn ghost" id="btn-copy">Copier</button>
+        <button type="button" class="btn ghost" id="btn-term">Ouvrir un terminal</button>
+      </div>
     </article>
 
     <article class="tile">
       <h2>Bot</h2>
-      <p class="muted" id="bot-hint">Put the token in secrets/discord.env then ./fakevps attach ~/bot</p>
-      <p class="muted hidden" id="bot-attached">Attached <code id="bot-dir"></code></p>
+      <p class="muted" id="bot-hint">Mets le jeton dans secrets/discord.env puis attache un dossier, par ex. ~/Discord Bot/MyBot</p>
+      <p class="muted hidden" id="bot-attached">Attaché <code id="bot-dir"></code></p>
+      <dl class="bot-meta">
+        <div><dt>Runtime</dt><dd id="bot-runtime">—</dd></div>
+        <div><dt>Jeton</dt><dd id="bot-token">—</dd></div>
+      </dl>
       <div class="attach-row">
-        <input type="text" id="bot-path" class="field" placeholder="~/bot" autocomplete="off" />
-        <button type="button" id="btn-attach" class="btn">Attach</button>
+        <input type="text" id="bot-path" class="field" placeholder="~/Discord Bot/MyBot" autocomplete="off" />
+        <button type="button" id="btn-attach" class="btn">Attacher</button>
+      </div>
+      <div class="actions bot-actions">
+        <button type="button" id="btn-sync" class="btn">Synchroniser</button>
+        <button type="button" id="btn-restart" class="btn">Relancer</button>
       </div>
       <p class="muted" id="panel-msg">Pas d’UI — aucun port configuré</p>
-      <a class="btn primary hidden" id="panel-link" href="#">Open panel</a>
+      <a class="btn primary hidden" id="panel-link" href="#">Ouvrir le panneau</a>
     </article>
 
     <article class="tile">
-      <h2>Health</h2>
-      <ul class="health">
+      <h2>Santé</h2>
+      <ul class="health" id="health-list">
         <li id="h-ssh"><span class="led"></span><span class="health-name">SSH</span><span class="health-state" id="h-ssh-state">off</span></li>
         <li id="h-docker"><span class="led"></span><span class="health-name">Docker</span><span class="health-state" id="h-docker-state">off</span></li>
         <li id="h-bot"><span class="led"></span><span class="health-name">Bot</span><span class="health-state" id="h-bot-state">off</span></li>
@@ -156,17 +165,18 @@
     </article>
 
     <article class="tile tile-log">
-      <h2>Activity</h2>
+      <h2>Journal</h2>
       <div class="term term-log">
         <div class="term-bar" aria-hidden="true"><span></span><span></span><span></span><em>journal</em></div>
-        <pre id="log" class="log">checking node…</pre>
+        <pre id="log" class="log">contrôle du nœud…</pre>
       </div>
     </article>
   </main>
 
   <footer>
-    <p class="foot-line">localhost only · 127.0.0.1</p>
-    <p class="foot-brand">FakeVPS — Copyright (c) 2026 Mr-Aurevo-X</p>
+    <p class="foot-line">localhost only · aucune collecte</p>
+    <p class="foot-brand"><a href="https://github.com/Mr-Aurevo-X/FakeVPS">Based on FakeVPS — https://github.com/Mr-Aurevo-X/FakeVPS</a></p>
+    <p class="foot-credit">FakeVPS — Copyright (c) 2026 Mr-Aurevo-X</p>
   </footer>
 
   <dialog class="diag" id="diag">

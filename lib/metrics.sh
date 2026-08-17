@@ -47,15 +47,79 @@ disk_cache_path() {
   printf '%s\n' "$STATE_DIR/metrics.disk"
 }
 
-read_disk_used_gb() {
-  local cache used
+# Prints: used_gb app_gb docker_gb
+read_disk_fields() {
+  local cache
   cache="$(disk_cache_path)"
   if [[ -s "$cache" ]]; then
-    used="$(tr -d '[:space:]' <"$cache")"
-    printf '%s\n' "${used:-0}"
+    python3 - "$cache" <<'PY'
+from pathlib import Path
+import json
+import sys
+
+raw = Path(sys.argv[1]).read_text(encoding="utf-8", errors="replace").strip()
+try:
+    data = json.loads(raw)
+except json.JSONDecodeError:
+    data = None
+if isinstance(data, dict):
+    app = float(data.get("disk_app_gb") or 0)
+    dock = float(data.get("disk_docker_gb") or 0)
+    used = float(data.get("disk_used_gb") or 0)
+    if used <= 0:
+        used = app + dock
+    print(f"{used:.1f} {app:.1f} {dock:.1f}")
+    raise SystemExit
+try:
+    used = float(raw)
+except ValueError:
+    used = 0.0
+print(f"{used:.1f} 0.0 0.0")
+PY
     return
   fi
-  echo 0
+  echo "0.0 0.0 0.0"
+}
+
+read_disk_used_gb() {
+  local used
+  read -r used _ _ < <(read_disk_fields)
+  printf '%s\n' "${used:-0}"
+}
+
+write_disk_cache() {
+  local cache="$1"
+  local app_b="${2:-0}"
+  local dock_b="${3:-0}"
+  python3 - "$cache" "$app_b" "$dock_b" <<'PY'
+from pathlib import Path
+import sys
+
+cache, app_s, dock_s = sys.argv[1], sys.argv[2], sys.argv[3]
+try:
+    app = int(float(app_s or 0))
+except ValueError:
+    app = 0
+try:
+    dock = int(float(dock_s or 0))
+except ValueError:
+    dock = 0
+g = 1024 ** 3
+app_gb = round(app / g, 1)
+dock_gb = round(dock / g, 1)
+Path(cache).write_text(
+    '{"disk_app_gb": %s, "disk_docker_gb": %s, "disk_used_gb": %s}\n'
+    % (app_gb, dock_gb, round(app_gb + dock_gb, 1)),
+    encoding="utf-8",
+)
+PY
+}
+
+du_bytes() {
+  local out
+  out="$(awk '{print $1; exit}' 2>/dev/null || true)"
+  [[ "$out" =~ ^[0-9]+$ ]] || out=0
+  printf '%s\n' "$out"
 }
 
 refresh_disk_cache_bg() {
@@ -74,18 +138,15 @@ refresh_disk_cache_bg() {
   fi
   (
     echo $$ >"$stamp"
-    local used=0
+    local app_b=0 dock_b=0
     if command -v docker >/dev/null 2>&1 && fast_running; then
-      used="$(docker exec -u root "$FAST_NAME" du -sb /var/lib/docker /home/ubuntu 2>/dev/null \
-        | awk '{ s += $1 } END { printf "%.1f", s / (1024^3) }')"
+      dock_b="$(docker exec -u root "$FAST_NAME" du -sb /var/lib/docker 2>/dev/null | du_bytes)"
+      app_b="$(docker exec -u root "$FAST_NAME" du -sb /home/ubuntu/app 2>/dev/null | du_bytes)"
     elif guest_ssh true >/dev/null 2>&1; then
-      used="$(guest_ssh python3 - <<'PY'
-import shutil
-print(round(shutil.disk_usage("/").used / (1024 ** 3), 1))
-PY
-)"
+      dock_b="$(guest_ssh du -sb /var/lib/docker 2>/dev/null | du_bytes)"
+      app_b="$(guest_ssh du -sb /home/ubuntu/app 2>/dev/null | du_bytes)"
     fi
-    printf '%s\n' "${used:-0}" >"$cache"
+    write_disk_cache "$cache" "$app_b" "$dock_b"
     rm -f "$stamp"
   ) >/dev/null 2>&1 &
 }
@@ -147,25 +208,33 @@ collect_metrics_json() {
     fi
     sidecar="$(fast_sidecar_json 2>/dev/null || true)"
     [[ "$sidecar" == \{* ]] || sidecar="{}"
-    local pending=false
+    local pending=false disk_used=0 disk_app=0 disk_docker=0
     [[ -s "$(disk_cache_path)" ]] || pending=true
+    read -r disk_used disk_app disk_docker < <(read_disk_fields)
     python3 "$FAKEVPS_ROOT/lib/metrics.py" --prev "$prev" <<EOF
 {"ram_mb": ${RAM_MB}, "cpus": ${CPUS}, "disk_gb": ${DISK_GB},
  "now": $(date +%s.%N),
  "memory_current": ${mem_cur:-0}, "memory_max": ${mem_max:-0},
  "memory_inactive_file": ${mem_cache:-0},
  "usage_usec": ${usage:-0}, "pids": ${pids:-0},
- "disk_used_gb": $(read_disk_used_gb),
+ "disk_used_gb": ${disk_used:-0},
+ "disk_app_gb": ${disk_app:-0},
+ "disk_docker_gb": ${disk_docker:-0},
  "disk_pending": ${pending},
  "sidecar": ${sidecar}}
 EOF
     return
   fi
   if guest_ssh true >/dev/null 2>&1; then
-    local guest
+    local guest disk_used=0 disk_app=0 disk_docker=0
     guest="$(guest_metrics 2>/dev/null || echo '{}')"
+    read -r disk_used disk_app disk_docker < <(read_disk_fields)
     python3 "$FAKEVPS_ROOT/lib/metrics.py" --prev "$prev" <<EOF
-{"mode": "guest", "now": $(date +%s.%N), "guest": ${guest}}
+{"mode": "guest", "now": $(date +%s.%N), "guest": ${guest},
+ "disk_used_gb": ${disk_used:-0},
+ "disk_app_gb": ${disk_app:-0},
+ "disk_docker_gb": ${disk_docker:-0},
+ "disk_total_gb": ${DISK_GB}}
 EOF
     return
   fi

@@ -8,10 +8,10 @@ tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 cp "$FAKEVPS_ROOT/config.env.example" "$tmp/config.env"
 FAKEVPS_ROOT="$tmp"
-write_config_key BOT_DIR "/home/x/Discord Bot/Sentinel"
+write_config_key BOT_DIR "/home/x/Discord Bot/MyBot"
 # shellcheck disable=SC1091
 source "$tmp/config.env"
-if [[ "$BOT_DIR" != "/home/x/Discord Bot/Sentinel" ]]; then
+if [[ "$BOT_DIR" != "/home/x/Discord Bot/MyBot" ]]; then
   echo "FAIL BOT_DIR not preserved: [$BOT_DIR]" >&2
   exit 1
 fi

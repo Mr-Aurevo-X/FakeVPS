@@ -23,6 +23,7 @@ ui_start() {
   mkdir -p "$STATE_DIR/logs"
   rm -f "$(ui_pidfile)"
   nohup env FAKEVPS_ROOT="$FAKEVPS_ROOT" UI_PORT="$UI_PORT" \
+    SSH_PORT="$SSH_PORT" SSH_USER="$SSH_USER" \
     python3 "$FAKEVPS_ROOT/lib/ui_server.py" \
     >>"$STATE_DIR/logs/ui.log" 2>&1 &
   local pid=$!

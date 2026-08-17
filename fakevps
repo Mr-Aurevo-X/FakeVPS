@@ -19,16 +19,19 @@ usage() {
   cat <<'EOF'
 FakeVPS — rehearse a paid VPS locally
 Copyright (c) 2026 Mr-Aurevo-X
+Based on FakeVPS — https://github.com/Mr-Aurevo-X/FakeVPS
 
   ./fakevps up [--fast]     Start the node + cockpit
   ./fakevps down            Clean stop (ACPI / docker stop)
   ./fakevps status [--json]
+  ./fakevps metrics         Envelope telemetry JSON (guest only)
   ./fakevps logs
   ./fakevps ssh [--] [cmd]
   ./fakevps ui              Open http://127.0.0.1:8787
   ./fakevps panel           Open bot panel if BOT_PANEL_PORT is set
   ./fakevps attach <dir>    Point BOT_DIR at any Discord bot and deploy
   ./fakevps sync            Re-rsync BOT_DIR
+  ./fakevps restart-bot     Restart guest bot (systemd or compose)
   ./fakevps reset           Wipe disk/container and reprovision next up
   ./fakevps install-service Install systemd --user unit
 
@@ -106,6 +109,7 @@ guest_is_up() {
 
 status_json() {
   local be running=false ssh_ok=false docker_ok=false bot_ok=false ui_ok=false
+  local probe="{}" runtime="none" bot_dir_display=""
   be="$(active_backend 2>/dev/null || echo "$BACKEND")"
   if [[ "$be" == "fast" ]] && fast_running; then running=true; fi
   if [[ "$be" == "kvm" ]] && qemu_running; then running=true; fi
@@ -115,11 +119,13 @@ status_json() {
   fi
   if guest_is_up; then ssh_ok=true; fi
   if ui_running; then ui_ok=true; fi
+  bot_dir_display="$(display_bot_dir "${BOT_DIR:-}")"
+  if [[ -n "${BOT_DIR}" && -d "${BOT_DIR}" ]]; then
+    runtime="$("$FAKEVPS_ROOT/provision/detect-runtime.sh" "$BOT_DIR" "${BOT_RUNTIME:-auto}" 2>/dev/null || echo none)"
+  fi
   if [[ "$ssh_ok" == true ]]; then
-    if guest_ssh "command -v docker >/dev/null" >/dev/null 2>&1; then docker_ok=true; fi
-    if guest_ssh "systemctl is-active --quiet discord-bot.service || docker ps --format '{{.Names}}' | grep -qiE 'bot|worker|discord'" >/dev/null 2>&1; then
-      bot_ok=true
-    fi
+    probe="$(guest_status_probe 2>/dev/null || echo '{}')"
+    [[ "$probe" == \{* ]] || probe="{}"
   fi
   local uptime="" metrics="{}"
   if [[ "$running" == true || "$ssh_ok" == true ]]; then
@@ -127,7 +133,9 @@ status_json() {
     metrics="$(collect_metrics_json 2>/dev/null || true)"
     [[ "$metrics" == \{* ]] || metrics="{}"
   fi
-  FAKEVPS_METRICS="$metrics" python3 - "$be" "$running" "$ssh_ok" "$docker_ok" "$bot_ok" "$ui_ok" "$uptime" \
+  FAKEVPS_METRICS="$metrics" FAKEVPS_PROBE="$probe" FAKEVPS_RUNTIME="$runtime" \
+    FAKEVPS_BOT_DIR_DISPLAY="$bot_dir_display" \
+    python3 - "$be" "$running" "$ssh_ok" "$docker_ok" "$bot_ok" "$ui_ok" "$uptime" \
     "$RAM_MB" "$CPUS" "$DISK_GB" "$SSH_PORT" "$UI_PORT" "${BOT_PANEL_PORT:-}" "${BOT_DIR:-}" <<'PY'
 import json, os, sys
 keys = [
@@ -147,6 +155,24 @@ except json.JSONDecodeError:
     extra = {}
 if isinstance(extra, dict):
     data.update(extra)
+try:
+    probe = json.loads(os.environ.get("FAKEVPS_PROBE") or "{}")
+except json.JSONDecodeError:
+    probe = {}
+if isinstance(probe, dict) and probe:
+    data["docker"] = bool(probe.get("docker"))
+    data["bot"] = bool(probe.get("bot"))
+    services = probe.get("services")
+    data["services"] = services if isinstance(services, list) else []
+    data["token_present"] = bool(probe.get("token_present"))
+    guest_rt = str(probe.get("runtime") or "").strip()
+else:
+    data["services"] = []
+    data["token_present"] = False
+    guest_rt = ""
+host_rt = (os.environ.get("FAKEVPS_RUNTIME") or "none").strip() or "none"
+data["runtime"] = host_rt if host_rt != "none" else (guest_rt or "none")
+data["bot_dir_display"] = os.environ.get("FAKEVPS_BOT_DIR_DISPLAY") or ""
 print(json.dumps(data))
 PY
 }
@@ -230,6 +256,40 @@ cmd_sync() {
   sync_bot_tree "$BOT_DIR"
 }
 
+cmd_metrics() {
+  collect_metrics_json
+}
+
+cmd_restart_bot() {
+  guest_is_up || die "node is down"
+  log "restart bot"
+  guest_ssh bash -s <<'EOF'
+set -euo pipefail
+APP=/home/ubuntu/app
+if systemctl is-active --quiet discord-bot.service \
+  || systemctl is-enabled --quiet discord-bot.service 2>/dev/null; then
+  sudo systemctl restart discord-bot.service
+  echo "restarted discord-bot.service"
+  exit 0
+fi
+cd "$APP"
+for f in docker-compose.prod.yml docker-compose.yml compose.yaml docker-compose.yaml; do
+  if [[ -f "$f" ]]; then
+    docker compose -f "$f" restart
+    echo "restarted compose $f"
+    exit 0
+  fi
+done
+if docker ps -aq --filter name=fakevps-bot | grep -q .; then
+  docker restart fakevps-bot
+  echo "restarted fakevps-bot"
+  exit 0
+fi
+echo "no bot service to restart" >&2
+exit 1
+EOF
+}
+
 cmd_reset() {
   cmd_down || true
   qemu_reset_disk
@@ -262,6 +322,8 @@ main() {
     panel) cmd_panel "$@" ;;
     attach) cmd_attach "$@" ;;
     sync) cmd_sync "$@" ;;
+    restart-bot) cmd_restart_bot "$@" ;;
+    metrics) cmd_metrics "$@" ;;
     reset) cmd_reset "$@" ;;
     install-service) cmd_install_service "$@" ;;
     -h|--help|help|"") usage ;;

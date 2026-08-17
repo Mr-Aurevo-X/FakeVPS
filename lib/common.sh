@@ -102,6 +102,33 @@ open_url() {
   fi
 }
 
+# Basename or ~/… — never a raw personal home path in UI/JSON display.
+display_bot_dir() {
+  local dir="${1:-}"
+  python3 - "$dir" <<'PY'
+import os
+import sys
+
+path = (sys.argv[1] or "").strip()
+if not path:
+    print("")
+    raise SystemExit
+home = os.path.expanduser("~")
+expanded = os.path.expanduser(path)
+real = os.path.abspath(expanded)
+if path == "~" or path.startswith("~/"):
+    print(path)
+    raise SystemExit
+if real == home:
+    print("~")
+    raise SystemExit
+if home and (real.startswith(home + os.sep)):
+    print("~/" + real[len(home) + 1 :].replace(os.sep, "/"))
+    raise SystemExit
+print(os.path.basename(real.rstrip(os.sep)) or real)
+PY
+}
+
 write_config_key() {
   local key="$1"
   local value="$2"

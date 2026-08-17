@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import subprocess
 import sys
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
@@ -80,6 +81,51 @@ def active_up_args() -> list[str]:
     return args
 
 
+def spawn_ssh_terminal() -> tuple[bool, str]:
+    """Open a local terminal to the guest. Fixed argv — no user shell string."""
+    port = os.environ.get("SSH_PORT") or "2222"
+    user = os.environ.get("SSH_USER") or "ubuntu"
+    key = ROOT / "secrets" / "vps_ed25519"
+    known = ROOT / "state" / "known_hosts"
+    ssh_cmd = ["ssh", "-p", port, f"{user}@127.0.0.1"]
+    if key.is_file():
+        ssh_cmd = [
+            "ssh",
+            "-i",
+            str(key),
+            "-p",
+            port,
+            "-o",
+            "StrictHostKeyChecking=accept-new",
+            "-o",
+            f"UserKnownHostsFile={known}",
+            f"{user}@127.0.0.1",
+        ]
+    prefixes: list[list[str]] = [
+        ["xdg-terminal-exec"],
+        ["gnome-terminal", "--"],
+        ["kitty"],
+        ["alacritty", "-e"],
+        ["konsole", "-e"],
+        ["xfce4-terminal", "-e"],
+        ["xterm", "-e"],
+    ]
+    for prefix in prefixes:
+        if not shutil.which(prefix[0]):
+            continue
+        try:
+            subprocess.Popen(
+                [*prefix, *ssh_cmd],
+                start_new_session=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            return True, "terminal opened"
+        except OSError:
+            continue
+    return False, "no terminal emulator found (xdg-terminal-exec, gnome-terminal, kitty, alacritty)"
+
+
 def spawn_fakevps(*args: str) -> int:
     env = os.environ.copy()
     env["FAKEVPS_SKIP_UI"] = "1"
@@ -143,6 +189,22 @@ class Handler(SimpleHTTPRequestHandler):
             data["starting"] = up_in_progress()
             self._json(200, data)
             return
+        if path == "/api/metrics":
+            proc = run_fakevps("metrics")
+            if proc.returncode != 0:
+                self._json(500, {
+                    "error": proc.stderr.strip() or "metrics failed",
+                })
+                return
+            try:
+                data = json.loads(proc.stdout or "{}")
+            except json.JSONDecodeError:
+                self._json(500, {"error": "invalid metrics json"})
+                return
+            if not isinstance(data, dict):
+                data = {}
+            self._json(200, data)
+            return
         if path == "/api/logs":
             self._json(200, {"log": tail_log(), "starting": up_in_progress()})
             return
@@ -204,6 +266,24 @@ class Handler(SimpleHTTPRequestHandler):
                 "ok": proc.returncode == 0,
                 "log": (proc.stdout + proc.stderr)[-4000:] or tail_log(),
             })
+            return
+        if path == "/api/sync":
+            proc = run_fakevps("sync")
+            self._json(200 if proc.returncode == 0 else 500, {
+                "ok": proc.returncode == 0,
+                "log": (proc.stdout + proc.stderr)[-4000:] or tail_log(),
+            })
+            return
+        if path == "/api/restart-bot":
+            proc = run_fakevps("restart-bot")
+            self._json(200 if proc.returncode == 0 else 500, {
+                "ok": proc.returncode == 0,
+                "log": (proc.stdout + proc.stderr)[-4000:] or tail_log(),
+            })
+            return
+        if path == "/api/open-terminal":
+            ok, msg = spawn_ssh_terminal()
+            self._json(200 if ok else 500, {"ok": ok, "log": msg})
             return
         self._json(404, {"error": "not found"})
 

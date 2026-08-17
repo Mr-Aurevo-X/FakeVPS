@@ -53,6 +53,8 @@ assert out["ram_total_mb"] == 6144
 assert out["ram_used_mb"] < 3500
 assert out["cpu_pct"] == 25.0
 assert out["disk_used_gb"] == 12.3
+assert out["disk_app_gb"] == 0.0
+assert out["disk_docker_gb"] == 0.0
 assert out["disk_total_gb"] == 40.0
 assert out["containers"] == 3
 assert out["net_rx_bps"] == 4000
@@ -80,5 +82,61 @@ guest, _ = m.build({
 assert guest["ram_total_mb"] == 6144
 assert guest["net_rx_bps"] == 1000
 assert guest["net_tx_bps"] == 200
+assert guest["disk_app_gb"] == 0.0
+assert guest["disk_docker_gb"] == 0.0
+
+split, _ = m.build({
+    "ram_mb": 6144,
+    "cpus": 4,
+    "disk_gb": 40,
+    "now": 200.0,
+    "memory_current": 1024,
+    "memory_max": 6442450944,
+    "usage_usec": 3_000_000,
+    "disk_app_gb": 1.25,
+    "disk_docker_gb": 3.44,
+    "prev": {"t": 198.0, "usage_usec": 1_000_000, "rx": 0, "tx": 0},
+})
+assert split["disk_app_gb"] == 1.2
+assert split["disk_docker_gb"] == 3.4
+assert split["disk_used_gb"] == 4.6
+assert split["disk_total_gb"] == 40.0
+
+# First CPU sample (no prev) must stay 0 — ignore the initial usage_usec.
+first, _ = m.build({
+    "ram_mb": 6144,
+    "cpus": 4,
+    "disk_gb": 40,
+    "now": 10.0,
+    "memory_current": 100,
+    "memory_max": 6442450944,
+    "usage_usec": 5_000_000,
+})
+assert first["cpu_pct"] == 0.0
 print("metrics.py envelope math ok")
 PY
+
+# shellcheck source=lib/metrics.sh
+source "$FAKEVPS_ROOT/lib/metrics.sh"
+cache="$(mktemp)"
+write_disk_cache "$cache" 1073741824 3221225472
+python3 - "$cache" <<'PY'
+import json
+import sys
+from pathlib import Path
+data = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+assert data["disk_app_gb"] == 1.0, data
+assert data["disk_docker_gb"] == 3.0, data
+assert data["disk_used_gb"] == 4.0, data
+print("disk cache json ok")
+PY
+STATE_DIR="$(mktemp -d)"
+printf '12.3\n' >"$STATE_DIR/metrics.disk"
+read -r used app dock < <(read_disk_fields)
+if [[ "$used" != "12.3" || "$app" != "0.0" || "$dock" != "0.0" ]]; then
+  echo "FAIL old disk cache: used=$used app=$app dock=$dock" >&2
+  exit 1
+fi
+rm -f "$cache"
+rm -rf "$STATE_DIR"
+echo "disk cache compat ok"
