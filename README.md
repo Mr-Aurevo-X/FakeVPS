@@ -81,4 +81,8 @@ Programme local pour répéter un VPS payant avant l’achat. `./fakevps up` dé
 
 ## License
 
-MIT — Copyright (c) 2026 Mr-Aurevo-X
+Not MIT. See [LICENSE](LICENSE).
+
+Copyright (c) 2026 **Mr-Aurevo-X**. You may use and modify FakeVPS, but you
+**must keep the Mr-Aurevo-X credit** in the UI, CLI help, and README. You may
+not present this software as your own product.

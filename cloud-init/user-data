@@ -19,6 +19,7 @@ write_files:
     permissions: "0644"
     content: |
       FakeVPS node — 6 GB RAM / 4 vCPU / 40 GB disk
+      Copyright (c) 2026 Mr-Aurevo-X
       SSH: ubuntu@this-host  |  cockpit stays on the workstation
   - path: /etc/hostname
     content: fakevps

@@ -18,7 +18,7 @@ RUN (id ubuntu >/dev/null 2>&1 || useradd -m -s /bin/bash ubuntu) \
     && mkdir -p /home/ubuntu/.ssh /run/sshd \
     && chmod 700 /home/ubuntu/.ssh \
     && chown -R ubuntu:ubuntu /home/ubuntu/.ssh \
-    && printf 'FakeVPS node — 6 GB RAM / 4 vCPU / 40 GB disk\nSSH: ubuntu@this-host\n' >/etc/motd \
+    && printf 'FakeVPS node — 6 GB RAM / 4 vCPU / 40 GB disk\nCopyright (c) 2026 Mr-Aurevo-X\nSSH: ubuntu@this-host\n' >/etc/motd \
     && echo fakevps >/etc/hostname \
     && systemctl enable ssh \
     && (systemctl mask systemd-resolved.service || true)

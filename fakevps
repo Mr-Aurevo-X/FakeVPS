@@ -18,6 +18,7 @@ done
 usage() {
   cat <<'EOF'
 FakeVPS — rehearse a paid VPS locally
+Copyright (c) 2026 Mr-Aurevo-X
 
   ./fakevps up [--fast]     Start the node + cockpit
   ./fakevps down            Clean stop (ACPI / docker stop)

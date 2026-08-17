@@ -2,8 +2,11 @@
 
 const $ = (id) => document.getElementById(id);
 
-function setHealth(id, ok) {
-  $(id).classList.toggle("ok", Boolean(ok));
+function setHealth(id, state) {
+  const el = $(id);
+  el.classList.remove("ok", "warn");
+  if (state === "ok") el.classList.add("ok");
+  if (state === "warn") el.classList.add("warn");
 }
 
 function fmtUptime(sec) {
@@ -24,8 +27,10 @@ async function api(path, opts) {
 function render(s) {
   const starting = Boolean(s.starting);
   const online = Boolean(s.running && s.ssh);
+  const booting = Boolean(starting || (s.running && !s.ssh));
   $("pill").classList.toggle("online", online && !starting);
-  $("pill").classList.toggle("booting", Boolean(starting || (s.running && !s.ssh)));
+  $("pill").classList.toggle("booting", booting);
+  $("pill").classList.toggle("offline", !online && !booting);
   $("pill-label").textContent = starting
     ? "starting"
     : online
@@ -39,10 +44,10 @@ function render(s) {
   $("m-disk").textContent = `${s.disk_gb || 40} GB`;
   $("m-be").textContent = s.backend || "—";
   $("ssh-cmd").textContent = `ssh -p ${s.ssh_port || 2222} ubuntu@127.0.0.1`;
-  setHealth("h-ssh", s.ssh);
-  setHealth("h-docker", s.docker);
-  setHealth("h-bot", s.bot);
-  setHealth("h-ui", s.ui);
+  setHealth("h-ssh", s.ssh ? "ok" : s.running ? "warn" : "off");
+  setHealth("h-docker", s.docker ? "ok" : s.ssh ? "warn" : "off");
+  setHealth("h-bot", s.bot ? "ok" : s.bot_dir ? "warn" : "off");
+  setHealth("h-ui", s.ui ? "ok" : "off");
   if (s.panel_port) {
     $("panel-msg").classList.add("hidden");
     $("panel-link").classList.remove("hidden");

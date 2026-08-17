@@ -5,6 +5,9 @@
   --bg1: #080809;
   --accent: #e11d2e;
   --accent-deep: #9f1220;
+  --ok: #22c55e;
+  --warn: #eab308;
+  --off: #ef4444;
   --text: #f4f4f5;
   --muted: #8b8b91;
   --glass: rgba(16, 16, 18, 0.58);
@@ -140,13 +143,19 @@ html, body {
 }
 
 .pill.online .dot {
-  background: var(--accent);
-  box-shadow: 0 0 10px rgba(225, 29, 46, 0.45);
+  background: var(--ok);
+  box-shadow: 0 0 12px rgba(34, 197, 94, 0.55);
 }
 
-.pill.booting .dot {
-  background: #7a3a40;
-  box-shadow: 0 0 8px rgba(122, 58, 64, 0.28);
+.pill.offline .dot {
+  background: var(--off);
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.5);
+}
+
+.pill.booting .dot,
+.pill.warn .dot {
+  background: var(--warn);
+  box-shadow: 0 0 12px rgba(234, 179, 8, 0.5);
 }
 
 .grid {
@@ -294,15 +303,21 @@ html, body {
 .health li::before {
   content: "";
   display: inline-block;
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
-  margin-right: 8px;
-  background: #4a4a50;
+  margin-right: 10px;
+  vertical-align: 1px;
+  background: var(--off);
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.65);
 }
 .health li.ok::before {
-  background: var(--accent);
-  box-shadow: 0 0 8px rgba(225, 29, 46, 0.4);
+  background: var(--ok);
+  box-shadow: 0 0 12px rgba(34, 197, 94, 0.75);
+}
+.health li.warn::before {
+  background: var(--warn);
+  box-shadow: 0 0 12px rgba(234, 179, 8, 0.75);
 }
 
 .log {
