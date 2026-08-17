@@ -287,6 +287,11 @@ cmd_panel() {
 cmd_attach() {
   local dir="${1:-}"
   [[ -n "$dir" ]] || die "usage: ./fakevps attach /path/to/bot"
+  # A quoted "~/..." reaches us unexpanded (copy-pasted commands) — expand it.
+  if [[ "$dir" == "~" || "$dir" == "~/"* ]]; then
+    dir="${HOME}${dir#\~}"
+  fi
+  [[ -d "$dir" ]] || die "not a directory: $dir"
   dir="$(cd "$dir" && pwd)"
   write_config_key BOT_DIR "$dir"
   BOT_DIR="$dir"

@@ -122,6 +122,8 @@ const I18N = {
     "diag.bot-down.d": "Le dossier est connu, aucun process bot/worker. Jeton, Compose ou systemd.",
     "diag.inside-guest.t": "Tu es dans le VPS, pas sur l’hôte",
     "diag.inside-guest.d": "Le prompt ubuntu@fakevps veut dire guest. ./fakevps attach se lance depuis le dossier FakeVPS sur l’hôte.",
+    "diag.empty-app.t": "Le nœud ne contient aucun code de bot",
+    "diag.empty-app.d": "runtime=none : /home/ubuntu/app est vide ou non reconnu — fréquent après une extinction en mode éphémère, qui efface tout. Ré-attache le dossier du bot pour le resynchroniser.",
     "diag.ok.t": "Rien à signaler",
     "diag.ok.d": "Nœud en ligne. Les feux Santé sont verts, ou le nœud attend juste un bot.",
   },
@@ -224,6 +226,8 @@ const I18N = {
     "diag.bot-down.d": "The folder is known, but no bot/worker process. Token, Compose or systemd.",
     "diag.inside-guest.t": "You are inside the VPS, not on the host",
     "diag.inside-guest.d": "The ubuntu@fakevps prompt means guest. ./fakevps attach runs from the FakeVPS folder on the host.",
+    "diag.empty-app.t": "The node holds no bot code",
+    "diag.empty-app.d": "runtime=none: /home/ubuntu/app is empty or unrecognized — common after an ephemeral shutdown, which erases everything. Re-attach the bot folder to resync it.",
     "diag.ok.t": "Nothing to report",
     "diag.ok.d": "Node online. The health lights are green, or the node is just waiting for a bot.",
   },
@@ -597,7 +601,7 @@ function diagnose(s) {
       level: "off",
       title: tr("diag.path-space.t"),
       detail: tr("diag.path-space.d"),
-      fix: "ln -sfn \"~/Discord Bot/MyBot\" ~/mon-bot\n./fakevps attach ~/mon-bot",
+      fix: "ln -sfn \"$HOME/Discord Bot/MyBot\" ~/mon-bot\n./fakevps attach ~/mon-bot",
     });
   }
   if (lookAtLog && (log.includes("discord_token missing") || log.includes("no secrets/discord.env"))) {
@@ -606,7 +610,7 @@ function diagnose(s) {
       level: "off",
       title: tr("diag.token.t"),
       detail: tr("diag.token.d"),
-      fix: "Édite secrets/discord.env et mets DISCORD_TOKEN=…\n./fakevps ssh -- rm -f /home/ubuntu/app/.env\n./fakevps attach \"~/Discord Bot/MyBot\"",
+      fix: "Édite secrets/discord.env et mets DISCORD_TOKEN=…\n./fakevps ssh -- rm -f /home/ubuntu/app/.env\n./fakevps attach \"$HOME/Discord Bot/MyBot\"",
     });
   }
   if (lookAtLog && (log.includes("required variable") || log.includes("is missing a value"))) {
@@ -615,7 +619,7 @@ function diagnose(s) {
       level: "off",
       title: tr("diag.compose-env.t"),
       detail: tr("diag.compose-env.d"),
-      fix: "Recopie le .env complet du bot dans secrets/discord.env\n./fakevps ssh -- rm -f /home/ubuntu/app/.env\n./fakevps attach \"~/Discord Bot/MyBot\"",
+      fix: "Recopie le .env complet du bot dans secrets/discord.env\n./fakevps ssh -- rm -f /home/ubuntu/app/.env\n./fakevps attach \"$HOME/Discord Bot/MyBot\"",
     });
   }
   if (lookAtLog && (log.includes("environment variable not found: database_url") || log.includes("database_url missing"))) {
@@ -624,7 +628,7 @@ function diagnose(s) {
       level: "off",
       title: tr("diag.database-url.t"),
       detail: tr("diag.database-url.d"),
-      fix: "Ajoute DATABASE_URL=… dans secrets/discord.env (ou dans le .env du bot)\n./fakevps attach \"~/Discord Bot/MyBot\"",
+      fix: "Ajoute DATABASE_URL=… dans secrets/discord.env (ou dans le .env du bot)\n./fakevps attach \"$HOME/Discord Bot/MyBot\"",
     });
   }
   if (lookAtLog && (log.includes("error ts2307") || log.includes("service not installed"))) {
@@ -633,7 +637,7 @@ function diagnose(s) {
       level: "off",
       title: tr("diag.ts-build.t"),
       detail: tr("diag.ts-build.d"),
-      fix: "Vérifie que le package.json racine a un script build/build:ci\n./fakevps attach \"~/Discord Bot/MyBot\"",
+      fix: "Vérifie que le package.json racine a un script build/build:ci\n./fakevps attach \"$HOME/Discord Bot/MyBot\"",
     });
   }
   if (lookAtLog && (log.includes("whiteout") || log.includes("operation not permitted"))) {
@@ -642,7 +646,7 @@ function diagnose(s) {
       level: "off",
       title: tr("diag.dind.t"),
       detail: tr("diag.dind.d"),
-      fix: "./fakevps down\n./fakevps up --fast\n./fakevps attach \"~/Discord Bot/MyBot\"",
+      fix: "./fakevps down\n./fakevps up --fast\n./fakevps attach \"$HOME/Discord Bot/MyBot\"",
     });
   }
   if (botStuck && (log.includes("didn't complete successfully") || log.includes("migrate"))) {
@@ -654,13 +658,22 @@ function diagnose(s) {
       fix: "./fakevps ssh -- 'journalctl -u discord-bot -n 40 --no-pager'",
     });
   }
+  if (lookAtLog && (log.includes("runtime=none") || log.includes("no known bot layout"))) {
+    issues.push({
+      id: "empty-app",
+      level: "off",
+      title: tr("diag.empty-app.t"),
+      detail: tr("diag.empty-app.d"),
+      fix: "./fakevps attach \"$HOME/Discord Bot/MyBot\"",
+    });
+  }
   if (online && !botDir) {
     issues.push({
       id: "no-bot",
       level: "warn",
       title: tr("diag.no-bot.t"),
       detail: tr("diag.no-bot.d"),
-      fix: "ln -sfn \"~/Discord Bot/MyBot\" ~/mon-bot\n./fakevps attach ~/mon-bot",
+      fix: "ln -sfn \"$HOME/Discord Bot/MyBot\" ~/mon-bot\n./fakevps attach ~/mon-bot",
     });
   }
   if (online && botDir && !s.bot) {
@@ -678,7 +691,7 @@ function diagnose(s) {
       level: "warn",
       title: tr("diag.inside-guest.t"),
       detail: tr("diag.inside-guest.d"),
-      fix: "exit\n./fakevps attach \"~/Discord Bot/MyBot\"",
+      fix: "exit\n./fakevps attach \"$HOME/Discord Bot/MyBot\"",
     });
   }
   if (!issues.length) {
@@ -829,16 +842,25 @@ function render(s) {
 function applyStatus(s) {
   lastStatus = { ...lastStatus, ...s };
   render(lastStatus);
+  // force_diag is one-shot: if it stayed in lastStatus, every refresh would
+  // reopen the dialog even after the user closed it.
+  lastStatus.force_diag = false;
 }
+
+let lastApiErr = "";
 
 async function refreshStatus() {
   try {
     const s = await api("/api/status");
+    lastApiErr = "";
     applyStatus(s);
   } catch (err) {
     const msg = String(err.message || err);
     renderActivity(msg);
-    syncDialog({ diag_error: msg, activity: msg }, true);
+    // Force the dialog open only when the error is new, otherwise a dead
+    // server would reopen it on every poll and lock the user out.
+    syncDialog({ diag_error: msg, activity: msg }, msg !== lastApiErr);
+    lastApiErr = msg;
   }
 }
 

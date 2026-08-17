@@ -26,4 +26,17 @@ printf '%s\n' "$aud_out" | grep -q 'FakeVPS audit' || fail "audit did not run"
 cli_ver="$(printf '%s\n' "$ver" | head -1 | awk '{print $2}')"
 grep -q "## ${cli_ver}" "$ROOT/CHANGELOG.md" || fail "CHANGELOG.md has no entry for ${cli_ver}"
 
+# attach must expand a literal quoted "~" itself (copy-pasted commands).
+if out="$("$ROOT/fakevps" attach '~/fakevps-missing-dir-xyz' 2>&1)"; then
+  fail "attach on a missing dir did not fail"
+else
+  printf '%s\n' "$out" | grep -q "not a directory: $HOME/fakevps-missing-dir-xyz" \
+    || fail "attach did not expand ~ (got: $out)"
+fi
+
+# Suggested cockpit commands must never contain a quoted, unexpandable tilde.
+grep -q '\\"~/' "$ROOT/ui/app.js" && fail "quoted tilde back in app.js fix commands"
+grep -q 'diag.empty-app.t' "$ROOT/ui/app.js" || fail "empty-app diagnostic missing"
+grep -q 'lastStatus.force_diag = false' "$ROOT/ui/app.js" || fail "force_diag one-shot reset missing"
+
 echo "cli-basics tests passed"
