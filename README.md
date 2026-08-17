@@ -2,165 +2,151 @@
 
 **Based on FakeVPS — https://github.com/Mr-Aurevo-X/FakeVPS**
 
-A **Mr-Aurevo-X** tool: start and stop a **local** Ubuntu node that behaves like a mid-range paid VPS (6 GB RAM / 4 vCPU / 40 GB disk, SSH, systemd, Docker **inside** the guest). Rehearse a real deploy on your machine before you rent a box.
+Run a **local** Ubuntu node that behaves like a mid-range paid VPS — 6 GB RAM, 4 vCPU, 40 GB disk, SSH, systemd, Docker inside the guest — and rehearse a real deploy before renting a box. No bot is bundled: attach **any** Discord bot (Node, Python, Compose, Dockerfile).
 
-The cockpit is [http://127.0.0.1:8787](http://127.0.0.1:8787). Traffic-light status: **green = online** (never brand-red for “online”).
-
-No Discord bot is bundled. Attach **any** bot (Node, Python, Compose, Dockerfile) when you want.
-
-The GitHub repo is **private for now**. This README is for people who already have the tree — not a public “clone and go” campaign.
+[English](#english) · [Français](#français)
 
 ---
 
 ## English
 
-### What it is
+### How it works
 
-FakeVPS is a **localhost rehearsal**, not a cloud product and not a hosted panel.
+One CLI (`./fakevps`), two backends, same ports:
 
-- **KVM** (`./fakevps up`): QEMU/KVM guest when `/dev/kvm` is available. Closest to a cheap VPS.
-- **`--fast`** (`./fakevps up --fast`): privileged Docker guest with systemd. Same SSH port and cockpit, quicker iteration. Default path on **WSL2**.
+- `./fakevps up` — **KVM/QEMU** guest. Strongest isolation, needs `/dev/kvm`.
+- `./fakevps up --fast` — **privileged Docker container** with systemd. Faster iteration, default path on WSL2.
 
-Both backends expose SSH on `127.0.0.1:2222` and the cockpit on `127.0.0.1:8787`.
+```mermaid
+flowchart LR
+    You[You] --> CLI["./fakevps CLI"]
+    CLI --> KVM["KVM guest (up)"]
+    CLI --> Fast["Docker guest (up --fast)"]
+    KVM --> Guest["Ubuntu 24.04 · SSH · systemd · Docker"]
+    Fast --> Guest
+    Guest --> Cockpit["Cockpit 127.0.0.1:8787"]
+    Guest --> SSH["SSH 127.0.0.1:2222"]
+```
 
-### Requirements
+Everything binds **127.0.0.1 only**: cockpit on `8787`, SSH on `2222`, optional bot panel on `BOT_PANEL_PORT`. Nothing listens on `0.0.0.0`.
 
-- **Linux** (native) or **Windows via WSL2 + Ubuntu**. Do not run this inside a VirtualBox/Hyper-V Linux VM and expect KVM/`--fast` to feel native.
-- On WSL2, give the distro enough RAM (this node wants 6 GB) in `%UserProfile%\.wslconfig`.
-- Optional Windows helper: `contrib/fakevps.bat` (still runs the Linux CLI inside WSL).
+### Linux
 
-### Quick start
+Requirements: QEMU/KVM (`/dev/kvm`) for the default backend, or Docker for `--fast`.
 
 ```bash
 cp config.env.example config.env
-./fakevps up          # KVM (needs /dev/kvm)
+./fakevps up          # KVM
 # or
 ./fakevps up --fast   # Docker systemd guest
 ```
 
-Then:
+### Windows
 
-```text
-./fakevps down
-./fakevps status
-./fakevps status --json
-./fakevps ssh
-./fakevps ui
-./fakevps attach "~/Discord Bot/MyBot"
-./fakevps sync
-./fakevps restart-bot
-```
+FakeVPS runs inside **WSL2 + Ubuntu** (not in a VirtualBox/Hyper-V Linux VM).
 
-Optional systemd **user** unit (survives closing the terminal). It follows `state/backend` or `BACKEND` in `config.env`. If you always use `--fast`, pass the flag (or set `BACKEND=fast`):
+1. Give WSL2 enough RAM (the node wants 6 GB) in `%UserProfile%\.wslconfig`.
+2. Clone the repo inside the WSL filesystem and follow the Linux steps.
+3. Recommended backend: `./fakevps up --fast`.
+4. Optional helper from Windows: `contrib/fakevps.bat` (it still runs the Linux CLI inside WSL).
 
-```bash
-./fakevps install-service --fast
-systemctl --user enable --now fakevps
-```
+### Commands
 
-### Ports (127.0.0.1 only)
+| Command | What it does |
+|---------|--------------|
+| `./fakevps up [--fast]` | Start the node and the cockpit |
+| `./fakevps down [--wipe]` | Stop everything; `--wipe` erases all stored state |
+| `./fakevps status [--json]` | Backend, SSH, cockpit, bot state |
+| `./fakevps ssh [-- cmd]` | Shell into the guest |
+| `./fakevps ui` | Open the cockpit |
+| `./fakevps attach <dir>` | Point at a bot folder and deploy it |
+| `./fakevps sync` | Re-rsync the bot tree |
+| `./fakevps restart-bot` | Restart the bot in the guest (systemd or Compose) |
+| `./fakevps panel` | Open the bot web UI if `BOT_PANEL_PORT` is set |
+| `./fakevps metrics` | Guest telemetry JSON |
+| `./fakevps reset` | Wipe disk/container; next `up` is a fresh node |
+| `./fakevps install-service [--fast\|--kvm]` | systemd user unit for auto-start |
 
-| Port | What |
-|------|------|
-| 8787 | FakeVPS cockpit |
-| 2222 | SSH (`ssh -p 2222 ubuntu@127.0.0.1`) |
-| `BOT_PANEL_PORT` | Optional bot web UI, if you set it in `config.env` |
-
-Nothing is supposed to bind `0.0.0.0`. See [SECURITY.md](SECURITY.md).
-
-### Attach any Discord bot
+### Attach a bot
 
 ```bash
 cp secrets/discord.env.example secrets/discord.env
-# set DISCORD_TOKEN=…  (never commit this file)
+# set DISCORD_TOKEN=… (never commit this file)
 
-./fakevps attach "~/Discord Bot/MyBot"
+./fakevps attach ~/MyBot
 ```
 
-Paths with spaces are fine if you quote them.
+Or click **Parcourir** in the cockpit's Bot tile and pick the folder — no path typing, no quoting issues.
 
-**Inject `.env`:** attach copies `BOT_DIR/.env` if present, then overlays **non-empty** keys from `secrets/discord.env`. The guest file is `/home/ubuntu/app/.env` (mode `600`). The cockpit only shows whether a token is **present** or **absent** — never the value.
-
-**Runtime detection** (first match wins): `fakevps.bot.yml` → Compose → Dockerfile → Node → Python. If nothing matches, the tree is copied to `/home/ubuntu/app` and you finish over SSH.
-
-Copy [examples/fakevps.bot.yml](examples/fakevps.bot.yml) into the bot repo to override detection (`runtime`, `compose_file`, `start`, `panel_port`).
-
-Optional web UI inside the bot:
-
-```bash
-# in config.env
-BOT_PANEL_PORT=3000
-```
-
-Then `./fakevps panel` opens `http://127.0.0.1:3000`.
-
-Cockpit **Bot** tile: attach a folder, **Synchroniser** (`./fakevps sync`), **Relancer** (`./fakevps restart-bot` — systemd `discord-bot` or `docker compose restart` in the guest, no extra rsync).
+- **`.env` injection** — attach copies `BOT_DIR/.env` if present, then overlays non-empty keys from `secrets/discord.env`. The guest file is `/home/ubuntu/app/.env` (mode `600`). The cockpit only ever shows token **present/absent**, never the value. If a required key is missing (`DATABASE_URL`, Compose variables…), the deploy stops early with the exact list.
+- **Runtime detection** (first match wins): `fakevps.bot.yml` → Compose → Dockerfile → Node → Python. Copy [examples/fakevps.bot.yml](examples/fakevps.bot.yml) into the bot repo to override (`runtime`, `compose_file`, `start`, `panel_port`).
+- **Monorepos** — the root `build:ci` / `build` script is used so workspace packages compile in order. If the build fails, no service is installed and `attach` reports the failure.
+- Set `BOT_PANEL_PORT=3000` in `config.env` to expose the bot's own web UI on `http://127.0.0.1:3000`.
 
 ### Cockpit
 
-Open [http://127.0.0.1:8787](http://127.0.0.1:8787) or run `./fakevps ui`.
+`./fakevps ui` or [http://127.0.0.1:8787](http://127.0.0.1:8787).
 
-- Power, node envelope (6 GB / 4 vCPU / 40 GB), live telemetry (guest only, not the host PC)
-- SSH command, copy, open a local terminal
-- Health LEDs (SSH, Docker, Bot, Cockpit, plus guest containers)
-- Activity journal and a diagnostic dialog with copy-able commands
+- Power controls, node envelope, live telemetry (guest only — never the host PC)
+- SSH command with copy / open-terminal buttons
+- Health LEDs (SSH, Docker, Bot, Cockpit, guest containers)
+- Bot tile: Browse, attach, sync, restart
+- Journal plus a diagnostic dialog with copy-able fixes
 
-### License (not MIT)
+### Configuration (`config.env`)
 
-See [LICENSE](LICENSE). Custom terms.
+| Key | Default | Meaning |
+|-----|---------|---------|
+| `BACKEND` | `kvm` | `kvm` or `fast` |
+| `RAM_MB` / `CPUS` / `DISK_GB` | `6144` / `4` / `40` | Node envelope |
+| `SSH_PORT` / `UI_PORT` | `2222` / `8787` | Host ports (loopback) |
+| `BOT_DIR` | empty | Attached bot folder (set by `attach`) |
+| `BOT_RUNTIME` | `auto` | Force `compose`/`docker`/`node`/`python` |
+| `BOT_PANEL_PORT` | empty | Forward the bot's web UI |
+| `EPHEMERAL` | `false` | `true` = every `down` erases all stored state |
 
-**Allowed:** use, copy, modify, run — including private or commercial projects — if you keep the credit and the origin link.
+**Ephemeral mode** — with `EPHEMERAL=true` (or `./fakevps down --wipe`), shutdown deletes the guest disk (bot code and injected `.env` included), the fast Docker graph, logs and caches. Only `secrets/` and the host SSH key remain. The next `up` re-provisions from scratch.
 
-**Forbidden:** strip or hide the Mr-Aurevo-X credit; present FakeVPS as your own product; replace the origin URL with only a fork URL.
+### Security & privacy
 
-**Forks must** keep the credit **and** the origin link in the **same three places**: cockpit footer, CLI help (`./fakevps --help`), and README:
+- Everything binds `127.0.0.1`. The cockpit refuses non-loopback hosts and cross-site POSTs.
+- The author collects **nothing**: no analytics, no phone-home, no external fonts. Tokens stay on your machine.
+- `--fast` runs a **privileged** container — near host-root. Prefer KVM when isolation matters.
+- Never commit `secrets/discord.env`, `config.env`, or `state/`. The public artifact is the git repository, not a zip of the working folder.
 
-`Based on FakeVPS — https://github.com/Mr-Aurevo-X/FakeVPS`
+Details: [SECURITY.md](SECURITY.md).
 
-A fork may add its own line **below**. It may not remove the origin link.
+### License
 
-The license is a **contract**, not a technical lock. GitHub will not stop someone from stripping the link in their own copy. **This** repository stays owner-write only (no write access without an invite).
-
-Copyright (c) 2026 **Mr-Aurevo-X**.
-
-### Privacy
-
-The author collects **nothing**. No backdoor, no phone-home, no analytics, no Google Fonts. Tokens stay on your machine. Details: [SECURITY.md](SECURITY.md).
-
-### Secrets and git
-
-Never commit `secrets/discord.env`, `config.env`, or `state/`. Examples (`*.example`) are safe to keep.
-
-The public artifact is the **git repository** (or `git archive`), not a zip of this folder. `state/` and leftover Docker graphs can sit on disk even when gitignored. See [SECURITY.md](SECURITY.md).
+Custom terms — see [LICENSE](LICENSE). **Allowed:** use, copy, modify, run, including commercial projects. **Required:** keep the credit and the origin line `Based on FakeVPS — https://github.com/Mr-Aurevo-X/FakeVPS` in the cockpit footer, the CLI help and the README. **Forbidden:** stripping the credit or presenting FakeVPS as your own. Copyright (c) 2026 **Mr-Aurevo-X**.
 
 ---
 
 ## Français
 
-**Based on FakeVPS — https://github.com/Mr-Aurevo-X/FakeVPS**
+### Fonctionnement
 
-Outil **Mr-Aurevo-X** : démarrer et arrêter un nœud Ubuntu **local** qui se comporte comme un VPS payant milieu de gamme (6 Go / 4 vCPU / 40 Go, SSH, systemd, Docker **dans** le guest). Tu répètes un vrai déploiement chez toi avant de louer la machine.
+Une CLI (`./fakevps`), deux moteurs, mêmes ports :
 
-Cockpit : [http://127.0.0.1:8787](http://127.0.0.1:8787). Feux tricolores : **vert = en ligne** (jamais le rouge de la marque pour « en ligne »).
+- `./fakevps up` — guest **KVM/QEMU**. Isolation maximale, nécessite `/dev/kvm`.
+- `./fakevps up --fast` — **conteneur Docker privilégié** avec systemd. Plus rapide, chemin par défaut sous WSL2.
 
-Aucun bot Discord n’est fourni. Tu attaches **n’importe quel** bot (Node, Python, Compose, Dockerfile).
+```mermaid
+flowchart LR
+    Toi[Toi] --> CLI["CLI ./fakevps"]
+    CLI --> KVM["Guest KVM (up)"]
+    CLI --> Fast["Guest Docker (up --fast)"]
+    KVM --> Guest["Ubuntu 24.04 · SSH · systemd · Docker"]
+    Fast --> Guest
+    Guest --> Cockpit["Cockpit 127.0.0.1:8787"]
+    Guest --> SSH["SSH 127.0.0.1:2222"]
+```
 
-Le dépôt GitHub est **privé pour le moment**. Ce README s’adresse à qui a déjà l’arbre — ce n’est pas une invitation à cloner en public.
+Tout écoute en **127.0.0.1 uniquement** : cockpit sur `8787`, SSH sur `2222`, panneau du bot optionnel sur `BOT_PANEL_PORT`. Rien sur `0.0.0.0`.
 
-### À quoi ça sert
+### Linux
 
-FakeVPS est une **répétition localhost**, pas un produit cloud ni un panneau hébergé.
-
-- **KVM** (`./fakevps up`) : guest QEMU/KVM si `/dev/kvm` est là. Le plus proche d’un VPS cheap.
-- **`--fast`** (`./fakevps up --fast`) : guest Docker privilégié avec systemd. Mêmes ports SSH/cockpit, itération plus rapide. Chemin par défaut sous **WSL2**.
-
-### Prérequis
-
-- **Linux** natif, ou **Windows via WSL2 + Ubuntu**. Pas une VM Linux VirtualBox/Hyper-V.
-- Sous WSL2, prévois assez de RAM (6 Go pour ce nœud) dans `%UserProfile%\.wslconfig`.
-- Aide Windows optionnelle : `contrib/fakevps.bat`.
-
-### Démarrage rapide
+Prérequis : QEMU/KVM (`/dev/kvm`) pour le moteur par défaut, ou Docker pour `--fast`.
 
 ```bash
 cp config.env.example config.env
@@ -169,72 +155,81 @@ cp config.env.example config.env
 ./fakevps up --fast   # guest Docker + systemd
 ```
 
-Puis `./fakevps down`, `status`, `ssh`, `ui`, `attach "~/Discord Bot/MyBot"`, `sync`, `restart-bot`.
+### Windows
 
-Service systemd **utilisateur**. Il suit `state/backend` ou `BACKEND` dans `config.env`. Si tu lances toujours `--fast` :
+FakeVPS tourne dans **WSL2 + Ubuntu** (pas dans une VM Linux VirtualBox/Hyper-V).
 
-```bash
-./fakevps install-service --fast
-systemctl --user enable --now fakevps
-```
+1. Donne assez de RAM à WSL2 (le nœud veut 6 Go) dans `%UserProfile%\.wslconfig`.
+2. Clone le dépôt dans le système de fichiers WSL et suis les étapes Linux.
+3. Moteur conseillé : `./fakevps up --fast`.
+4. Aide optionnelle côté Windows : `contrib/fakevps.bat` (lance la CLI Linux dans WSL).
 
-### Ports (127.0.0.1 uniquement)
+### Commandes
 
-| Port | Rôle |
-|------|------|
-| 8787 | Cockpit FakeVPS |
-| 2222 | SSH (`ssh -p 2222 ubuntu@127.0.0.1`) |
-| `BOT_PANEL_PORT` | UI web du bot, si tu la configures |
+| Commande | Rôle |
+|----------|------|
+| `./fakevps up [--fast]` | Démarrer le nœud et le cockpit |
+| `./fakevps down [--wipe]` | Tout arrêter ; `--wipe` efface tout l'état stocké |
+| `./fakevps status [--json]` | Moteur, SSH, cockpit, état du bot |
+| `./fakevps ssh [-- cmd]` | Shell dans le guest |
+| `./fakevps ui` | Ouvrir le cockpit |
+| `./fakevps attach <dossier>` | Attacher un dossier de bot et le déployer |
+| `./fakevps sync` | Re-rsync de l'arbre du bot |
+| `./fakevps restart-bot` | Relancer le bot dans le guest (systemd ou Compose) |
+| `./fakevps panel` | Ouvrir l'UI web du bot si `BOT_PANEL_PORT` est défini |
+| `./fakevps metrics` | Télémétrie du guest en JSON |
+| `./fakevps reset` | Effacer disque/conteneur ; le prochain `up` repart de zéro |
+| `./fakevps install-service [--fast\|--kvm]` | Unité systemd utilisateur (auto-démarrage) |
 
-Rien n’est censé écouter sur `0.0.0.0`. Voir [SECURITY.md](SECURITY.md).
-
-### Attacher un bot Discord
+### Attacher un bot
 
 ```bash
 cp secrets/discord.env.example secrets/discord.env
-# DISCORD_TOKEN=…  (ne jamais commiter ce fichier)
+# DISCORD_TOKEN=… (ne jamais commiter ce fichier)
 
-./fakevps attach "~/Discord Bot/MyBot"
+./fakevps attach ~/MonBot
 ```
 
-Les chemins avec espaces passent s’ils sont quotés.
+Ou clique **Parcourir** dans la tuile Bot du cockpit et choisis le dossier — pas de chemin à taper, pas de souci d'espaces.
 
-**Injection `.env` :** copie de `BOT_DIR/.env` s’il existe, puis surcharge des clés **non vides** de `secrets/discord.env`. Côté guest : `/home/ubuntu/app/.env` (mode `600`). Le cockpit affiche seulement jeton **présent** / **absent**.
-
-**Détection** : `fakevps.bot.yml` → Compose → Dockerfile → Node → Python. Sinon l’arbre est copié dans `/home/ubuntu/app` et tu finis en SSH.
-
-Manifeste optionnel : [examples/fakevps.bot.yml](examples/fakevps.bot.yml).
-
-Tuile **Bot** du cockpit : attacher, **Synchroniser**, **Relancer** (systemd ou `docker compose restart`, sans rsync).
+- **Injection `.env`** — `attach` copie `BOT_DIR/.env` s'il existe, puis surcharge avec les clés non vides de `secrets/discord.env`. Côté guest : `/home/ubuntu/app/.env` (mode `600`). Le cockpit affiche seulement jeton **présent/absent**, jamais la valeur. S'il manque une clé requise (`DATABASE_URL`, variables Compose…), le déploiement s'arrête tôt avec la liste exacte.
+- **Détection du runtime** (premier match gagnant) : `fakevps.bot.yml` → Compose → Dockerfile → Node → Python. Copie [examples/fakevps.bot.yml](examples/fakevps.bot.yml) dans le repo du bot pour forcer (`runtime`, `compose_file`, `start`, `panel_port`).
+- **Monorepos** — le script racine `build:ci` / `build` compile les packages workspace dans l'ordre. Si le build échoue, aucun service n'est installé et `attach` remonte l'échec.
+- Mets `BOT_PANEL_PORT=3000` dans `config.env` pour exposer l'UI web du bot sur `http://127.0.0.1:3000`.
 
 ### Cockpit
 
-[http://127.0.0.1:8787](http://127.0.0.1:8787) ou `./fakevps ui`. Alimentation, enveloppe du nœud, télémétrie du **guest** (pas le PC hôte), SSH, santé, journal, diagnostic.
+`./fakevps ui` ou [http://127.0.0.1:8787](http://127.0.0.1:8787).
 
-### Licence (pas MIT)
+- Alimentation, enveloppe du nœud, télémétrie en direct (guest uniquement — jamais le PC hôte)
+- Commande SSH avec boutons copier / ouvrir un terminal
+- LEDs de santé (SSH, Docker, Bot, Cockpit, conteneurs du guest)
+- Tuile Bot : parcourir, attacher, synchroniser, relancer
+- Journal et fenêtre de diagnostic avec correctifs copiables
 
-Voir [LICENSE](LICENSE).
+### Configuration (`config.env`)
 
-**Autorisé :** utiliser, copier, modifier, exécuter — y compris un projet privé ou commercial — en gardant le crédit et le lien d’origine.
+| Clé | Défaut | Rôle |
+|-----|--------|------|
+| `BACKEND` | `kvm` | `kvm` ou `fast` |
+| `RAM_MB` / `CPUS` / `DISK_GB` | `6144` / `4` / `40` | Enveloppe du nœud |
+| `SSH_PORT` / `UI_PORT` | `2222` / `8787` | Ports hôte (loopback) |
+| `BOT_DIR` | vide | Dossier du bot attaché (rempli par `attach`) |
+| `BOT_RUNTIME` | `auto` | Forcer `compose`/`docker`/`node`/`python` |
+| `BOT_PANEL_PORT` | vide | Exposer l'UI web du bot |
+| `EPHEMERAL` | `false` | `true` = chaque `down` efface tout l'état stocké |
 
-**Interdit :** retirer ou cacher le crédit Mr-Aurevo-X ; présenter FakeVPS comme ton produit ; remplacer l’URL d’origine par seulement l’URL du fork.
+**Mode éphémère** — avec `EPHEMERAL=true` (ou `./fakevps down --wipe`), l'extinction supprime le disque du guest (code du bot et `.env` injecté compris), le graph Docker du mode fast, les journaux et les caches. Seuls `secrets/` et la clé SSH de l'hôte restent. Le prochain `up` re-provisionne tout.
 
-**Tout fork doit** garder le crédit **et** le lien d’origine aux **trois mêmes endroits** : pied du cockpit, aide CLI, README :
+### Sécurité et vie privée
 
-`Based on FakeVPS — https://github.com/Mr-Aurevo-X/FakeVPS`
+- Tout écoute sur `127.0.0.1`. Le cockpit refuse les hôtes non-loopback et les POST cross-site.
+- L'auteur **ne collecte rien** : pas d'analytics, pas d'appel réseau caché, pas de polices externes. Les jetons restent sur ta machine.
+- `--fast` lance un conteneur **privilégié** — quasi root sur l'hôte. Préfère KVM quand l'isolation compte.
+- Ne commite jamais `secrets/discord.env`, `config.env` ni `state/`. L'artefact public est le dépôt git, pas un zip du dossier de travail.
 
-Un fork peut ajouter sa ligne **en dessous**. Il ne peut pas retirer le lien d’origine.
+Détails : [SECURITY.md](SECURITY.md).
 
-La licence est un **contrat**, pas un verrou technique. GitHub n’empêchera pas quelqu’un de retirer le lien dans sa copie. **Ce** dépôt reste en écriture propriétaire (pas d’accès write sans invitation).
+### Licence
 
-Copyright (c) 2026 **Mr-Aurevo-X**.
-
-### Vie privée
-
-L’auteur **ne collecte rien**. Pas de backdoor, pas d’appel réseau caché, pas de Google Fonts. Les jetons restent sur ta machine. Détails : [SECURITY.md](SECURITY.md).
-
-### Secrets et git
-
-Ne commite jamais `secrets/discord.env`, `config.env`, ni `state/`.
-
-L’artefact public, c’est le **dépôt git** (ou `git archive`), pas un zip de ce dossier. `state/` et un graphe Docker oublié peuvent rester sur le disque même s’ils sont ignorés par git. Voir [SECURITY.md](SECURITY.md).
+Termes personnalisés — voir [LICENSE](LICENSE). **Autorisé :** utiliser, copier, modifier, exécuter, y compris en commercial. **Obligatoire :** garder le crédit et la ligne d'origine `Based on FakeVPS — https://github.com/Mr-Aurevo-X/FakeVPS` dans le pied du cockpit, l'aide CLI et le README. **Interdit :** retirer le crédit ou présenter FakeVPS comme ton produit. Copyright (c) 2026 **Mr-Aurevo-X**.
