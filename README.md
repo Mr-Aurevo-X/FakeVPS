@@ -40,6 +40,9 @@ cp secrets/discord.env.example secrets/discord.env
 ./fakevps attach ~/my-bot
 ```
 
+Paths with spaces are fine (`./fakevps attach "~/Discord Bot/Sentinel"`).  
+Attach copies `BOT_DIR/.env` if present, then overlays non-empty keys from `secrets/discord.env`.
+
 Auto-detect order: `fakevps.bot.yml` → Compose → Dockerfile → Node → Python.  
 If nothing matches, the tree is copied to `/home/ubuntu/app` and you finish over SSH.
 

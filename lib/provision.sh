@@ -40,7 +40,8 @@ marker_path() {
 
 first_boot_provision() {
   # Never abort `up` here: a failed scp/bot must not kill the cockpit (set -e parent).
-  if [[ -f "$(marker_path)" ]]; then
+  # Host marker can be stale after the fast container is recreated.
+  if guest_ssh "command -v docker >/dev/null 2>&1"; then
     if [[ -n "${BOT_DIR}" ]]; then
       provision_bot || log "bot deploy failed — node stays up; retry ./fakevps attach <dir>"
     fi

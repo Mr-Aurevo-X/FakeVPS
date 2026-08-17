@@ -32,7 +32,7 @@ if [[ -n "$compose_file" && -f "$APP/$compose_file" ]]; then
   exit 0
 fi
 
-for f in docker-compose.yml compose.yaml docker-compose.prod.yml docker-compose.yaml; do
+for f in docker-compose.prod.yml docker-compose.yml compose.yaml docker-compose.yaml; do
   if [[ -f "$APP/$f" ]]; then
     printf 'compose\n'
     exit 0

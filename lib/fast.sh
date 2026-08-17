@@ -9,6 +9,11 @@ fast_running() {
   docker inspect -f '{{.State.Running}}' "$FAST_NAME" 2>/dev/null | grep -q true
 }
 
+fast_docker_graph_mounted() {
+  docker inspect -f '{{range .Mounts}}{{if eq .Destination "/var/lib/docker"}}yes{{end}}{{end}}' \
+    "$FAST_NAME" 2>/dev/null | grep -q yes
+}
+
 fast_build() {
   require_cmd docker
   if docker image inspect "$FAST_IMAGE" >/dev/null 2>&1; then
@@ -20,12 +25,17 @@ fast_build() {
 
 fast_up() {
   require_cmd docker
-  if fast_running; then
+  if fast_running && fast_docker_graph_mounted; then
     log "fast container already running"
     return 0
   fi
+  if fast_running; then
+    log "recreating fast node with a host-backed Docker graph"
+    docker rm -f "$FAST_NAME" >/dev/null 2>&1 || true
+  fi
   fast_build
   ensure_ssh_key
+  mkdir -p "$STATE_DIR/fast/docker" "$STATE_DIR/fast/containerd"
   local ports=(-p "127.0.0.1:${SSH_PORT}:22")
   if [[ -n "${BOT_PANEL_PORT}" ]]; then
     ports+=(-p "127.0.0.1:${BOT_PANEL_PORT}:${BOT_PANEL_PORT}")
@@ -40,6 +50,8 @@ fast_up() {
     --cpus="$CPUS" \
     --hostname fakevps \
     -v /sys/fs/cgroup:/sys/fs/cgroup:rw \
+    -v "$STATE_DIR/fast/docker:/var/lib/docker" \
+    -v "$STATE_DIR/fast/containerd:/var/lib/containerd" \
     "${ports[@]}" \
     "$FAST_IMAGE" >/dev/null
   local i=0
@@ -67,4 +79,6 @@ fast_down() {
 
 fast_reset() {
   docker rm -f "$FAST_NAME" >/dev/null 2>&1 || true
+  rm -rf "$STATE_DIR/fast/docker" "$STATE_DIR/fast/containerd"
+  mkdir -p "$STATE_DIR/fast/docker" "$STATE_DIR/fast/containerd"
 }

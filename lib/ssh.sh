@@ -70,17 +70,65 @@ sync_bot_tree() {
 
 inject_bot_env() {
   local dest_env="/home/ubuntu/app/.env"
-  if guest_ssh "test -f $dest_env"; then
-    log "guest .env already present — leaving it"
-    return 0
+  local bot_env=""
+  local secrets_env=""
+  local tmp
+  if [[ -n "${BOT_DIR}" && -f "${BOT_DIR}/.env" ]]; then
+    bot_env="${BOT_DIR}/.env"
   fi
   if [[ -f "$SECRETS_DIR/discord.env" ]]; then
-    guest_ssh "mkdir -p /home/ubuntu/app"
-    # shellcheck disable=SC2046
-    scp $(scp_opts) "$SECRETS_DIR/discord.env" "${SSH_USER}@127.0.0.1:${dest_env}"
-    guest_ssh "chmod 600 $dest_env"
-    log "injected secrets/discord.env → $dest_env"
+    secrets_env="$SECRETS_DIR/discord.env"
+  fi
+  if [[ -z "$bot_env" && -z "$secrets_env" ]]; then
+    log "no .env in BOT_DIR or secrets/discord.env — bot will not auto-start"
+    return 0
+  fi
+  tmp="$(mktemp "$STATE_DIR/.env.inject.XXXXXX")"
+  python3 - "$tmp" "$bot_env" "$secrets_env" <<'PY'
+from pathlib import Path
+import re
+import sys
+
+def parse(path: str) -> dict[str, str]:
+    data: dict[str, str] = {}
+    if not path:
+        return data
+    for raw in Path(path).read_text(encoding="utf-8", errors="replace").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        key = key.strip()
+        if key.startswith("export "):
+            key = key[7:].strip()
+        if key:
+            data[key] = value
+    return data
+
+dest, bot_env, secrets_env = sys.argv[1], sys.argv[2], sys.argv[3]
+merged = parse(bot_env)
+for key, value in parse(secrets_env).items():
+    if value.strip():
+        merged[key] = value
+if not str(merged.get("POSTGRES_PASSWORD", "")).strip():
+    match = re.match(r"postgres(?:ql)?://[^:]+:([^@]+)@", merged.get("DATABASE_URL", ""))
+    if match:
+        merged["POSTGRES_PASSWORD"] = match.group(1)
+if not str(merged.get("DISCORD_CLIENT_SECRET", "")).strip():
+    merged["DISCORD_CLIENT_SECRET"] = "fakevps-rehearsal"
+lines = [f"{key}={value}" for key, value in merged.items()]
+Path(dest).write_text("\n".join(lines) + ("\n" if lines else ""), encoding="utf-8")
+PY
+  guest_ssh "mkdir -p /home/ubuntu/app"
+  # shellcheck disable=SC2046
+  scp $(scp_opts) "$tmp" "${SSH_USER}@127.0.0.1:${dest_env}"
+  rm -f "$tmp"
+  guest_ssh "chmod 600 $dest_env"
+  if [[ -n "$bot_env" && -n "$secrets_env" ]]; then
+    log "injected BOT_DIR/.env + secrets/discord.env → $dest_env"
+  elif [[ -n "$bot_env" ]]; then
+    log "injected BOT_DIR/.env → $dest_env"
   else
-    log "no secrets/discord.env — bot will not auto-start"
+    log "injected secrets/discord.env → $dest_env"
   fi
 }

@@ -47,7 +47,13 @@ reclaim_runtime_dirs() {
 }
 
 ensure_dirs() {
-  mkdir -p "$STATE_DIR/kvm" "$STATE_DIR/fast" "$STATE_DIR/images" "$STATE_DIR/logs" "$SECRETS_DIR"
+  mkdir -p \
+    "$STATE_DIR/kvm" \
+    "$STATE_DIR/fast/docker" \
+    "$STATE_DIR/fast/containerd" \
+    "$STATE_DIR/images" \
+    "$STATE_DIR/logs" \
+    "$SECRETS_DIR"
   reclaim_runtime_dirs
 }
 
@@ -105,18 +111,20 @@ write_config_key() {
   fi
   python3 - "$cfg" "$key" "$value" <<'PY'
 from pathlib import Path
+import shlex
 import sys
 path, key, value = Path(sys.argv[1]), sys.argv[2], sys.argv[3]
+quoted = shlex.quote(value)
 lines = path.read_text().splitlines()
 out, found = [], False
 for line in lines:
     if line.startswith(key + "="):
-        out.append(f"{key}={value}")
+        out.append(f"{key}={quoted}")
         found = True
     else:
         out.append(line)
 if not found:
-    out.append(f"{key}={value}")
+    out.append(f"{key}={quoted}")
 path.write_text("\n".join(out) + "\n")
 PY
 }

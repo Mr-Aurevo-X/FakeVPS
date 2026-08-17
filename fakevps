@@ -61,9 +61,13 @@ cmd_up() {
     ui_start || log "cockpit not listening yet — node start continues"
   fi
   if guest_is_up; then
-    log "already online — not starting a second node"
-    print_urls
-    return 0
+    if [[ "$mode" == "fast" ]] && ! fast_docker_graph_mounted; then
+      log "fast node lacks a host Docker graph — recreating so image pulls work"
+    else
+      log "already online — not starting a second node"
+      print_urls
+      return 0
+    fi
   fi
   if [[ "$mode" == "fast" ]]; then
     fast_up
@@ -113,7 +117,7 @@ status_json() {
   if ui_running; then ui_ok=true; fi
   if [[ "$ssh_ok" == true ]]; then
     if guest_ssh "command -v docker >/dev/null" >/dev/null 2>&1; then docker_ok=true; fi
-    if guest_ssh "systemctl is-active --quiet discord-bot.service || docker ps --format '{{.Names}}' | grep -q ." >/dev/null 2>&1; then
+    if guest_ssh "systemctl is-active --quiet discord-bot.service || docker ps --format '{{.Names}}' | grep -qiE 'bot|worker|discord'" >/dev/null 2>&1; then
       bot_ok=true
     fi
   fi
