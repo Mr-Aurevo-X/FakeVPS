@@ -22,7 +22,7 @@ Copyright (c) 2026 Mr-Aurevo-X
 Based on FakeVPS — https://github.com/Mr-Aurevo-X/FakeVPS
 
   ./fakevps up [--fast]     Start the node + cockpit
-  ./fakevps down            Clean stop (ACPI / docker stop)
+  ./fakevps down            Stop the node and the cockpit
   ./fakevps status [--json]
   ./fakevps metrics         Envelope telemetry JSON (guest only)
   ./fakevps logs
@@ -101,6 +101,7 @@ cmd_down() {
       qemu_acpi_down || true
       ;;
   esac
+  ui_stop
 }
 
 guest_is_up() {

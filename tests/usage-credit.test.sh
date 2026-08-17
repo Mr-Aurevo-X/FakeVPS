@@ -9,6 +9,10 @@ printf '%s\n' "$help_out" | grep -q 'https://github.com/Mr-Aurevo-X/FakeVPS' \
   || { echo "FAIL help missing origin URL" >&2; exit 1; }
 printf '%s\n' "$help_out" | grep -q 'restart-bot' \
   || { echo "FAIL help missing restart-bot" >&2; exit 1; }
+grep -q 'ui_stop' "$ROOT/fakevps" \
+  || { echo "FAIL down must stop the cockpit" >&2; exit 1; }
+grep -q "pgrep -f 'lib/ui_server.py'" "$ROOT/lib/ui-server.sh" \
+  || { echo "FAIL ui_stop must reap leftover cockpits" >&2; exit 1; }
 
 for f in LICENSE README.md SECURITY.md CONTRIBUTING.md ui/index.html; do
   grep -q 'https://github.com/Mr-Aurevo-X/FakeVPS' "$ROOT/$f" \

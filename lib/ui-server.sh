@@ -52,4 +52,14 @@ ui_stop() {
     fi
     rm -f "$pf"
   fi
+  # Leftover cockpit from this tree or a sibling checkout (Python only).
+  local p comm
+  while read -r p; do
+    [[ -n "$p" ]] || continue
+    comm="$(ps -o comm= -p "$p" 2>/dev/null || true)"
+    comm="${comm// /}"
+    case "$comm" in
+      python3|python) kill "$p" 2>/dev/null || true ;;
+    esac
+  done < <(pgrep -f 'lib/ui_server.py' || true)
 }
