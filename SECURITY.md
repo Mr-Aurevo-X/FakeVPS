@@ -30,7 +30,7 @@ KVM (`./fakevps up`) is the stronger isolation story.
 
 ### Guest package install (no `curl | bash`)
 
-First-boot scripts install Docker and Node.js from **Ubuntu packages** (`docker.io`, `nodejs`, `npm`). They do not pipe `get.docker.com` or NodeSource into a shell.
+First-boot scripts install Docker from the **Ubuntu package** (`docker.io`). Node.js **22 LTS** is installed from `nodejs.org` with a **sha256 check** when a bot needs it (Ubuntu 24.04 only has Node 18; current pnpm wants ≥ 22.13). They do not pipe `get.docker.com` or NodeSource into a shell.
 
 ### Git repo vs folder dump
 
@@ -75,7 +75,7 @@ KVM (`./fakevps up`) isole mieux.
 
 ### Paquets guest (pas de `curl | bash`)
 
-Le premier boot installe Docker et Node.js via les **paquets Ubuntu** (`docker.io`, `nodejs`, `npm`). Les scripts ne pipent plus `get.docker.com` ni NodeSource dans un shell.
+Le premier boot installe Docker via le **paquet Ubuntu** (`docker.io`). Node.js **22 LTS** vient de `nodejs.org` avec **contrôle sha256** si le bot en a besoin (Ubuntu 24.04 n’a que Node 18 ; pnpm actuel veut ≥ 22.13). Pas de `get.docker.com` ni NodeSource pipé dans un shell.
 
 ### Dépôt git vs zip du dossier
 

@@ -65,14 +65,53 @@ EOF
   systemctl enable --now discord-bot.service
 }
 
+# Ubuntu 24.04 ships Node 18. Current pnpm needs >= 22.13.
+# Official tarball + sha256 — do not pipe NodeSource into a shell.
+NODE_MIN_MAJOR=22
+NODE_MIN_MINOR=13
+NODE_DIST_VER=22.23.2
+
+node_meets_min() {
+  command -v node >/dev/null 2>&1 && command -v npm >/dev/null 2>&1 || return 1
+  node -e '
+const [maj, min] = process.versions.node.split(".").map(Number);
+const needMaj = Number(process.env.NODE_MIN_MAJOR || 22);
+const needMin = Number(process.env.NODE_MIN_MINOR || 13);
+process.exit((maj > needMaj || (maj === needMaj && min >= needMin)) ? 0 : 1);
+' 2>/dev/null
+}
+
 ensure_node() {
-  if command -v node >/dev/null 2>&1 && command -v npm >/dev/null 2>&1; then
+  export NODE_MIN_MAJOR NODE_MIN_MINOR
+  if node_meets_min; then
     return 0
   fi
-  # Distro package — do not pipe nodesource setup into a shell.
-  log "installing Node.js from Ubuntu packages"
-  DEBIAN_FRONTEND=noninteractive apt-get update -qq
-  DEBIAN_FRONTEND=noninteractive apt-get install -y nodejs npm
+  local arch file sha url tmp
+  case "$(uname -m)" in
+    x86_64)
+      arch=linux-x64
+      sha=b294a556e639d64338823920e5866c21c02741742d2e1529ee1a225c1ec9252a
+      ;;
+    aarch64)
+      arch=linux-arm64
+      sha=013b59cfd2819703a6f4a14ab891fc46fc2a4e3f5bf92de3fb4929b43e35b30
+      ;;
+    *)
+      log "unsupported arch $(uname -m) for Node.js"
+      return 1
+      ;;
+  esac
+  file="node-v${NODE_DIST_VER}-${arch}.tar.gz"
+  url="https://nodejs.org/dist/v${NODE_DIST_VER}/${file}"
+  log "installing Node.js ${NODE_DIST_VER} from nodejs.org (checksum verified)"
+  tmp="$(mktemp -d)"
+  curl -fsSL "$url" -o "${tmp}/${file}"
+  echo "${sha}  ${tmp}/${file}" | sha256sum -c -
+  tar -C /usr/local --strip-components=1 -xzf "${tmp}/${file}"
+  rm -rf "$tmp"
+  hash -r
+  export PATH="/usr/local/bin:${PATH}"
+  node_meets_min
 }
 
 start_node_bot() {
@@ -80,8 +119,10 @@ start_node_bot() {
   ensure_node
   local exec_start=""
   if [[ -f pnpm-lock.yaml ]]; then
+    export PATH="/usr/local/bin:${PATH}"
     corepack enable >/dev/null 2>&1 || true
-    corepack prepare pnpm@9.15.0 --activate >/dev/null 2>&1 || npm install -g pnpm
+    corepack prepare pnpm@9.15.0 --activate >/dev/null 2>&1 \
+      || corepack prepare pnpm@latest --activate
     sudo -u ubuntu pnpm install
     if grep -q '"db:migrate"' package.json; then
       sudo -u ubuntu pnpm db:migrate || sudo -u ubuntu pnpm db:push || true
