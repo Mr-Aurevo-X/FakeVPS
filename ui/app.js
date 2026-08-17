@@ -195,9 +195,19 @@ function activityText(s) {
   return String(s.activity || s.error || $("log").textContent || "");
 }
 
+function recentActivity(raw) {
+  const log = String(raw || "").toLowerCase();
+  let cut = -1;
+  for (const marker of ["injected bot_dir", "injected secrets", "auto-deploy bot"]) {
+    const i = log.lastIndexOf(marker);
+    if (i > cut) cut = i;
+  }
+  return cut >= 0 ? log.slice(cut) : log;
+}
+
 function diagnose(s) {
   const issues = [];
-  const log = activityText(s).toLowerCase();
+  const log = recentActivity(activityText(s));
   const botDir = String(s.bot_dir || "");
   const starting = Boolean(s.starting);
   const online = Boolean(s.running && s.ssh);
@@ -258,15 +268,6 @@ function diagnose(s) {
       title: "DISCORD_TOKEN manquant",
       detail: "Le code est copié, le bot ne démarre pas sans token.",
       fix: "Édite secrets/discord.env et mets DISCORD_TOKEN=…\n./fakevps ssh -- rm -f /home/ubuntu/app/.env\n./fakevps attach ~/ton-bot",
-    });
-  }
-  if (lookAtLog && log.includes("already present") && log.includes(".env")) {
-    issues.push({
-      id: "stale-env",
-      level: "warn",
-      title: "Un vieux .env bloque l’inject",
-      detail: "Le guest a déjà /home/ubuntu/app/.env. FakeVPS fusionne maintenant à chaque attach ; si le log est ancien, rattache.",
-      fix: "./fakevps ssh -- rm -f /home/ubuntu/app/.env\n./fakevps attach ~/ton-bot",
     });
   }
   if (lookAtLog && (log.includes("required variable") || log.includes("is missing a value"))) {
