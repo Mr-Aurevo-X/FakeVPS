@@ -1,0 +1,11 @@
+config.env
+state/
+secrets/*
+!secrets/.gitignore
+!secrets/*.example
+*.qcow2
+*.img
+*.iso
+__pycache__/
+*.pyc
+.DS_Store
