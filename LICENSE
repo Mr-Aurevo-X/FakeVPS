@@ -20,6 +20,15 @@ conditions:
    You may add your own changes as a separate notice; you may not
    remove the original credit.
 
+4. Origin. Every copy or fork MUST mention and link the origin
+   repository at the same three places as the credit (cockpit
+   footer, CLI help, and README):
+   https://github.com/Mr-Aurevo-X/FakeVPS
+   Use text such as:
+   "Based on FakeVPS — https://github.com/Mr-Aurevo-X/FakeVPS"
+   A fork may add its own line below; it may not remove the
+   origin link or replace it with only the fork URL.
+
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
 EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
 MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
