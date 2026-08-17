@@ -24,6 +24,23 @@ load_config() {
   fi
 
   STATE_DIR="$FAKEVPS_ROOT/state"
+  # Profiles: ./fakevps -p <name> overlays profiles/<name>.env and moves all
+  # state under state/profiles/<name>, so two nodes never share a disk,
+  # a container name, or ports (set distinct ports in the profile).
+  if [[ -n "${FAKEVPS_PROFILE:-}" ]]; then
+    if [[ ! "$FAKEVPS_PROFILE" =~ ^[A-Za-z0-9_-]+$ ]]; then
+      printf 'invalid profile name: %s\n' "$FAKEVPS_PROFILE" >&2
+      exit 2
+    fi
+    if [[ -f "$FAKEVPS_ROOT/profiles/${FAKEVPS_PROFILE}.env" ]]; then
+      set -a
+      # shellcheck disable=SC1090
+      source "$FAKEVPS_ROOT/profiles/${FAKEVPS_PROFILE}.env"
+      set +a
+    fi
+    STATE_DIR="$FAKEVPS_ROOT/state/profiles/$FAKEVPS_PROFILE"
+    FAST_NAME="fakevps-$FAKEVPS_PROFILE"
+  fi
   SECRETS_DIR="$FAKEVPS_ROOT/secrets"
   SSH_KEY="$SECRETS_DIR/vps_ed25519"
   SSH_PUB="$SECRETS_DIR/vps_ed25519.pub"

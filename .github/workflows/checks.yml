@@ -24,3 +24,29 @@ jobs:
             echo "FAIL: personal Documents path in tracked files" >&2
             exit 1
           fi
+
+  # Boots the real --fast node on the runner: up, SSH round-trip, ephemeral down.
+  boot-fast:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Doctor
+        run: ./fakevps doctor || true
+      - name: Boot the fast node
+        run: FAKEVPS_SKIP_UI=1 ./fakevps up --fast
+      - name: Status says ssh is up
+        run: |
+          set -euo pipefail
+          ./fakevps status --json | tee /tmp/status.json
+          python3 -c "import json,sys; s=json.load(open('/tmp/status.json')); sys.exit(0 if s.get('ssh') else 1)"
+      - name: SSH round-trip
+        run: ./fakevps ssh -- 'echo guest-ok && docker --version'
+      - name: Ephemeral shutdown
+        run: |
+          set -euo pipefail
+          ./fakevps down --wipe
+          if [ -e state/kvm/disk.qcow2 ] || [ -n "$(ls -A state/fast/docker 2>/dev/null)" ]; then
+            echo "FAIL: state left behind after down --wipe" >&2
+            exit 1
+          fi

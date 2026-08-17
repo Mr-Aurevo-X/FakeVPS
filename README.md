@@ -65,6 +65,10 @@ FakeVPS runs inside **WSL2 + Ubuntu** (not in a VirtualBox/Hyper-V Linux VM).
 | `./fakevps panel` | Open the bot web UI if `BOT_PANEL_PORT` is set |
 | `./fakevps metrics` | Guest telemetry JSON |
 | `./fakevps reset` | Wipe disk/container; next `up` is a fresh node |
+| `./fakevps snapshot list\|save\|restore\|rm <name>` | qcow2 snapshots of the node disk (kvm, node stopped) |
+| `./fakevps doctor` | Check the host (KVM, Docker, RAM, disk, ports) before the first `up` |
+| `./fakevps audit` | Check secrets permissions and git hygiene |
+| `./fakevps -p <name> <cmd>` | Run with profile `profiles/<name>.env` (own state and ports) |
 | `./fakevps install-service [--fast\|--kvm]` | systemd user unit for auto-start |
 
 ### Attach a bot
@@ -179,6 +183,10 @@ FakeVPS tourne dans **WSL2 + Ubuntu** (pas dans une VM Linux VirtualBox/Hyper-V)
 | `./fakevps panel` | Ouvrir l'UI web du bot si `BOT_PANEL_PORT` est défini |
 | `./fakevps metrics` | Télémétrie du guest en JSON |
 | `./fakevps reset` | Effacer disque/conteneur ; le prochain `up` repart de zéro |
+| `./fakevps snapshot list\|save\|restore\|rm <nom>` | Snapshots qcow2 du disque du nœud (kvm, nœud arrêté) |
+| `./fakevps doctor` | Vérifier l'hôte (KVM, Docker, RAM, disque, ports) avant le premier `up` |
+| `./fakevps audit` | Vérifier permissions des secrets et hygiène git |
+| `./fakevps -p <nom> <cmd>` | Lancer avec le profil `profiles/<nom>.env` (état et ports séparés) |
 | `./fakevps install-service [--fast\|--kvm]` | Unité systemd utilisateur (auto-démarrage) |
 
 ### Attacher un bot

@@ -39,6 +39,9 @@ Based on FakeVPS — https://github.com/Mr-Aurevo-X/FakeVPS
   ./fakevps install-service [--fast|--kvm]  systemd --user unit
   ./fakevps --version
 
+  ./fakevps -p <name> <command>   Use profile profiles/<name>.env
+                                  (own state, ports, bot — see profiles/)
+
 Windows: use WSL2, then ./fakevps up --fast
 EOF
 }
@@ -560,6 +563,12 @@ cmd_install_service() {
 }
 
 main() {
+  while [[ "${1:-}" == "-p" || "${1:-}" == "--profile" ]]; do
+    shift
+    [[ -n "${1:-}" ]] || die "usage: ./fakevps -p <name> <command>"
+    export FAKEVPS_PROFILE="$1"
+    shift
+  done
   load_config
   ensure_dirs
   local cmd="${1:-}"

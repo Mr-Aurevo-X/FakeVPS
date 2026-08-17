@@ -17,6 +17,8 @@ All notable changes to FakeVPS. Based on FakeVPS — https://github.com/Mr-Aurev
 - Cockpit is **bilingual** (FR/EN): language auto-detected from the browser, FR/EN toggle in the header, diagnostics included.
 - `./fakevps snapshot list|save|restore|rm` — qcow2 snapshots of the node disk (kvm backend, node stopped).
 - **Post-deploy healthcheck** — after `attach`, the guest waits for a bot process that survives its first seconds; on failure it prints the journal tail and the deploy reports an error (crash-loops and bad tokens surface immediately).
+- **Profiles** — `./fakevps -p <name> <cmd>` overlays `profiles/<name>.env` and keeps its own state, ports and container name, so several nodes coexist.
+- CI now **boots the real `--fast` node** on every push: up, SSH round-trip, ephemeral `down --wipe`.
 
 ### Changed
 - Bot deploys are guarded: compose env preflight with the exact list of missing keys, Prisma migrate skipped without `DATABASE_URL`, monorepo build via root `build:ci`/`build`, and **no systemd unit is installed when the build fails** (attach reports the failure).

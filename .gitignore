@@ -1,5 +1,7 @@
 config.env
 state/
+profiles/*
+!profiles/example.env.example
 secrets/*
 !secrets/.gitignore
 !secrets/*.example

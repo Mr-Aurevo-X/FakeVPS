@@ -157,10 +157,11 @@ def browse_payload(raw: str) -> dict:
 ROOT = Path(os.environ["FAKEVPS_ROOT"])
 UI = ROOT / "ui"
 BIN = ROOT / "fakevps"
-LOG_PATH = ROOT / "state" / "logs" / "fakevps.log"
-UP_PID = ROOT / "state" / "up.pid"
-BACKEND_PATH = ROOT / "state" / "backend"
-TOKEN_PATH = ROOT / "state" / "ui.token"
+STATE = Path(os.environ.get("FAKEVPS_STATE_DIR") or (ROOT / "state"))
+LOG_PATH = STATE / "logs" / "fakevps.log"
+UP_PID = STATE / "up.pid"
+BACKEND_PATH = STATE / "backend"
+TOKEN_PATH = STATE / "ui.token"
 
 
 def load_or_create_token() -> str:
@@ -254,7 +255,7 @@ def spawn_ssh_terminal() -> tuple[bool, str]:
     port = os.environ.get("SSH_PORT") or "2222"
     user = os.environ.get("SSH_USER") or "ubuntu"
     key = ROOT / "secrets" / "vps_ed25519"
-    known = ROOT / "state" / "known_hosts"
+    known = STATE / "known_hosts"
     ssh_cmd = ["ssh", "-p", port, f"{user}@127.0.0.1"]
     if key.is_file():
         ssh_cmd = [
