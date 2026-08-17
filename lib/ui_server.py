@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -17,6 +18,7 @@ from urllib.parse import urlparse
 
 LOOPBACK_IPS = frozenset({"127.0.0.1", "::1"})
 LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
+MAX_BODY = 65536
 
 
 def parse_host_header(host_header: str) -> str:
@@ -40,6 +42,46 @@ def loopback_request_ok(host_header: str, client_ip: str) -> bool:
     if normalize_client_ip(client_ip) not in LOOPBACK_IPS:
         return False
     return parse_host_header(host_header) in LOOPBACK_HOSTS
+
+
+def cockpit_origins(port: int) -> frozenset[str]:
+    return frozenset({
+        f"http://127.0.0.1:{port}",
+        f"http://localhost:{port}",
+        f"http://[::1]:{port}",
+    })
+
+
+def origin_header_ok(value: str, port: int) -> bool:
+    raw = (value or "").strip().rstrip("/")
+    return raw in cockpit_origins(port)
+
+
+def referer_ok(value: str, port: int) -> bool:
+    raw = (value or "").strip()
+    if not raw:
+        return False
+    parsed = urlparse(raw)
+    origin = f"{parsed.scheme}://{parsed.netloc}"
+    return origin in cockpit_origins(port)
+
+
+def csrf_ok(origin: str, referer: str, port: int) -> bool:
+    if origin:
+        return origin_header_ok(origin, port)
+    return referer_ok(referer, port)
+
+
+def redact_home_paths(text: str, home: str | None = None) -> str:
+    out = text or ""
+    home_path = home if home is not None else os.path.expanduser("~")
+    if home_path and home_path not in {"", "/", "~"}:
+        out = out.replace(home_path, "~")
+    out = re.sub(r"(?<=[\s\"'=])/home/[^/\s\"']+", "~", out)
+    out = re.sub(r"(?<=[\s\"'=])/Users/[^/\s\"']+", "~", out)
+    out = re.sub(r"^/home/[^/\s\"']+", "~", out, flags=re.M)
+    out = re.sub(r"^/Users/[^/\s\"']+", "~", out, flags=re.M)
+    return out
 
 
 ROOT = Path(os.environ["FAKEVPS_ROOT"])
@@ -70,7 +112,7 @@ def tail_log(n: int = 80) -> str:
         lines = LOG_PATH.read_text(encoding="utf-8", errors="replace").splitlines()
     except OSError:
         return ""
-    return "\n".join(lines[-n:])
+    return redact_home_paths("\n".join(lines[-n:]))
 
 
 def pid_alive(pid: int) -> bool:
@@ -185,6 +227,9 @@ class Handler(SimpleHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def _ui_port(self) -> int:
+        return int(os.environ.get("UI_PORT", "8787"))
+
     def _reject_if_remote(self) -> bool:
         host = self.headers.get("Host") or ""
         client = self.client_address[0] if self.client_address else ""
@@ -193,9 +238,29 @@ class Handler(SimpleHTTPRequestHandler):
         self._json(403, {"error": "localhost only"})
         return True
 
+    def _reject_if_csrf(self) -> bool:
+        origin = self.headers.get("Origin") or ""
+        referer = self.headers.get("Referer") or ""
+        if csrf_ok(origin, referer, self._ui_port()):
+            return False
+        self._json(403, {"error": "localhost cockpit only"})
+        return True
+
+    def _reject_if_huge(self) -> bool:
+        try:
+            n = int(self.headers.get("Content-Length") or 0)
+        except ValueError:
+            n = 0
+        if n <= MAX_BODY:
+            return False
+        self._json(413, {"error": "body too large"})
+        return True
+
     def _read_json(self) -> dict:
         n = int(self.headers.get("Content-Length") or 0)
         if n <= 0:
+            return {}
+        if n > MAX_BODY:
             return {}
         raw = self.rfile.read(n)
         try:
@@ -212,7 +277,7 @@ class Handler(SimpleHTTPRequestHandler):
             proc = run_fakevps("status", "--json")
             if proc.returncode != 0:
                 self._json(500, {
-                    "error": proc.stderr.strip() or "status failed",
+                    "error": redact_home_paths(proc.stderr.strip() or "status failed"),
                     "activity": tail_log(),
                     "starting": up_in_progress(),
                 })
@@ -220,7 +285,7 @@ class Handler(SimpleHTTPRequestHandler):
             try:
                 data = json.loads(proc.stdout)
             except json.JSONDecodeError:
-                self._json(500, {"error": "invalid status json", "raw": proc.stdout})
+                self._json(500, {"error": "invalid status json"})
                 return
             data["activity"] = tail_log()
             data["starting"] = up_in_progress()
@@ -251,6 +316,10 @@ class Handler(SimpleHTTPRequestHandler):
 
     def do_POST(self) -> None:  # noqa: N802
         if self._reject_if_remote():
+            return
+        if self._reject_if_csrf():
+            return
+        if self._reject_if_huge():
             return
         path = urlparse(self.path).path
         if path == "/api/up":
@@ -287,7 +356,7 @@ class Handler(SimpleHTTPRequestHandler):
             proc = run_fakevps("down")
             self._json(200 if proc.returncode == 0 else 500, {
                 "ok": proc.returncode == 0,
-                "log": (proc.stdout + proc.stderr)[-4000:] or tail_log(),
+                "log": redact_home_paths((proc.stdout + proc.stderr)[-4000:]) or tail_log(),
             })
             return
         if path == "/api/attach":
@@ -298,26 +367,26 @@ class Handler(SimpleHTTPRequestHandler):
                 return
             expanded = os.path.expanduser(raw)
             if not os.path.isdir(expanded):
-                self._json(400, {"ok": False, "error": f"not a directory: {raw}"})
+                self._json(400, {"ok": False, "error": "not a directory"})
                 return
             proc = run_fakevps("attach", expanded)
             self._json(200 if proc.returncode == 0 else 500, {
                 "ok": proc.returncode == 0,
-                "log": (proc.stdout + proc.stderr)[-4000:] or tail_log(),
+                "log": redact_home_paths((proc.stdout + proc.stderr)[-4000:]) or tail_log(),
             })
             return
         if path == "/api/sync":
             proc = run_fakevps("sync")
             self._json(200 if proc.returncode == 0 else 500, {
                 "ok": proc.returncode == 0,
-                "log": (proc.stdout + proc.stderr)[-4000:] or tail_log(),
+                "log": redact_home_paths((proc.stdout + proc.stderr)[-4000:]) or tail_log(),
             })
             return
         if path == "/api/restart-bot":
             proc = run_fakevps("restart-bot")
             self._json(200 if proc.returncode == 0 else 500, {
                 "ok": proc.returncode == 0,
-                "log": (proc.stdout + proc.stderr)[-4000:] or tail_log(),
+                "log": redact_home_paths((proc.stdout + proc.stderr)[-4000:]) or tail_log(),
             })
             return
         if path == "/api/open-terminal":

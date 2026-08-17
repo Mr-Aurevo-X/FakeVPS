@@ -27,4 +27,10 @@ expect "~/Discord Bot/MyBot" "~/Discord Bot/MyBot"
 expect "/home/x/Discord Bot/MyBot" "~/Discord Bot/MyBot"
 expect "/home/x" "~"
 expect "/opt/bots/widget" "widget"
+
+got="$(redact_log_text "generated /home/x/secrets/vps_ed25519")"
+if [[ "$got" != "generated ~/secrets/vps_ed25519" ]]; then
+  echo "FAIL redact_log_text: got [$got]" >&2
+  exit 1
+fi
 echo "display_bot_dir tests passed"

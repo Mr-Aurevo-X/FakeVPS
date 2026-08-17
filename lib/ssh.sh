@@ -6,7 +6,7 @@ ensure_ssh_key() {
     require_cmd ssh-keygen
     ssh-keygen -t ed25519 -f "$SSH_KEY" -N "" -C "fakevps" >/dev/null
     chmod 600 "$SSH_KEY"
-    log "generated $SSH_KEY"
+    log "generated SSH key"
   fi
 }
 
@@ -205,7 +205,7 @@ wait_ssh() {
 
 sync_bot_tree() {
   local src="$1"
-  [[ -d "$src" ]] || die "BOT_DIR is not a directory: $src"
+  [[ -d "$src" ]] || die "BOT_DIR is not a directory: $(display_bot_dir "$src")"
   require_cmd rsync
   log "rsync bot → guest:/home/ubuntu/app"
   guest_ssh "mkdir -p /home/ubuntu/app"

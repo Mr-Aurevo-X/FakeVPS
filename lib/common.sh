@@ -57,10 +57,24 @@ ensure_dirs() {
   reclaim_runtime_dirs
 }
 
+redact_log_text() {
+  printf '%s' "$1" | python3 -c '
+import os
+import sys
+
+text = sys.stdin.read()
+home = os.path.expanduser("~")
+if home and home not in {"", "/", "~"}:
+    text = text.replace(home, "~")
+sys.stdout.write(text)
+'
+}
+
 log() {
-  local msg
-  msg="$(date -Iseconds) $*"
-  printf '[fakevps] %s\n' "$*"
+  local msg shown
+  shown="$(redact_log_text "$*")"
+  msg="$(date -Iseconds) ${shown}"
+  printf '[fakevps] %s\n' "$shown"
   mkdir -p "$(dirname "$LOG_FILE")"
   printf '%s\n' "$msg" >>"$LOG_FILE"
 }
