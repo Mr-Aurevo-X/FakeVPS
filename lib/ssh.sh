@@ -36,6 +36,76 @@ guest_ssh() {
   ssh $(ssh_opts) "${SSH_USER}@127.0.0.1" "$@"
 }
 
+guest_metrics() {
+  guest_ssh env \
+    FAKEVPS_RAM_MB="$RAM_MB" \
+    FAKEVPS_CPUS="$CPUS" \
+    FAKEVPS_DISK_GB="$DISK_GB" \
+    python3 - <<'PY'
+import json
+import os
+import shutil
+import subprocess
+
+ram_cap = int(os.environ.get("FAKEVPS_RAM_MB") or 6144)
+cpus = max(int(os.environ.get("FAKEVPS_CPUS") or 4), 1)
+disk_cap = float(os.environ.get("FAKEVPS_DISK_GB") or 40)
+mem = {}
+with open("/proc/meminfo", encoding="utf-8") as fh:
+    for line in fh:
+        parts = line.split()
+        if len(parts) >= 2:
+            mem[parts[0].rstrip(":")] = int(parts[1])
+total = mem.get("MemTotal", 0) // 1024
+avail = mem.get("MemAvailable", mem.get("MemFree", 0)) // 1024
+used = max(total - avail, 0)
+if total > int(ram_cap * 1.15):
+    total = ram_cap
+    used = min(used, total)
+load1 = 0.0
+try:
+    with open("/proc/loadavg", encoding="utf-8") as fh:
+        load1 = float(fh.read().split()[0])
+except OSError:
+    pass
+du = shutil.disk_usage("/")
+containers = 0
+try:
+    out = subprocess.check_output(["docker", "ps", "-q"], stderr=subprocess.DEVNULL)
+    containers = len([row for row in out.split() if row])
+except (OSError, subprocess.CalledProcessError):
+    pass
+pids = 0
+try:
+    pids = sum(1 for name in os.listdir("/proc") if name.isdigit())
+except OSError:
+    pass
+rx = tx = 0
+for name in ("ens3", "enp0s3", "eth0", "enp0s1"):
+    base = f"/sys/class/net/{name}/statistics"
+    try:
+        rx = int(open(f"{base}/rx_bytes", encoding="utf-8").read())
+        tx = int(open(f"{base}/tx_bytes", encoding="utf-8").read())
+        break
+    except OSError:
+        continue
+print(json.dumps({
+    "ram_used_mb": used,
+    "ram_total_mb": total,
+    "load1": round(load1, 2),
+    "cpu_pct": min(100.0, round(100.0 * load1 / cpus, 1)),
+    "disk_used_gb": round(du.used / (1024 ** 3), 1),
+    "disk_total_gb": round(disk_cap, 1),
+    "containers": containers,
+    "pids": pids,
+    "net_rx_bps": 0,
+    "net_tx_bps": 0,
+    "rx": rx,
+    "tx": tx,
+}))
+PY
+}
+
 wait_ssh() {
   local timeout="${1:-180}"
   local i=0

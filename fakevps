@@ -8,7 +8,7 @@ FAKEVPS_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$FAKEVPS_ROOT/lib/common.sh"
 # shellcheck source=lib/ssh.sh
 source "$FAKEVPS_ROOT/lib/ssh.sh"
-for _lib in qemu fast provision ui-server; do
+for _lib in qemu fast provision ui-server metrics; do
   if [[ -f "$FAKEVPS_ROOT/lib/${_lib}.sh" ]]; then
     # shellcheck disable=SC1090
     source "$FAKEVPS_ROOT/lib/${_lib}.sh"
@@ -121,13 +121,15 @@ status_json() {
       bot_ok=true
     fi
   fi
-  local uptime=""
-  if [[ "$ssh_ok" == true ]]; then
-    uptime="$(guest_ssh "awk '{print int(\$1)}' /proc/uptime" 2>/dev/null || true)"
+  local uptime="" metrics="{}"
+  if [[ "$running" == true || "$ssh_ok" == true ]]; then
+    uptime="$(node_uptime_sec 2>/dev/null || true)"
+    metrics="$(collect_metrics_json 2>/dev/null || true)"
+    [[ "$metrics" == \{* ]] || metrics="{}"
   fi
-  python3 - "$be" "$running" "$ssh_ok" "$docker_ok" "$bot_ok" "$ui_ok" "$uptime" \
+  FAKEVPS_METRICS="$metrics" python3 - "$be" "$running" "$ssh_ok" "$docker_ok" "$bot_ok" "$ui_ok" "$uptime" \
     "$RAM_MB" "$CPUS" "$DISK_GB" "$SSH_PORT" "$UI_PORT" "${BOT_PANEL_PORT:-}" "${BOT_DIR:-}" <<'PY'
-import json, sys
+import json, os, sys
 keys = [
     "backend", "running", "ssh", "docker", "bot", "ui", "uptime_sec",
     "ram_mb", "cpus", "disk_gb", "ssh_port", "ui_port", "panel_port", "bot_dir",
@@ -139,6 +141,12 @@ for k in ("running", "ssh", "docker", "bot", "ui"):
 for k in ("ram_mb", "cpus", "disk_gb", "ssh_port", "ui_port"):
     data[k] = int(data[k] or 0)
 data["uptime_sec"] = int(data["uptime_sec"] or 0)
+try:
+    extra = json.loads(os.environ.get("FAKEVPS_METRICS") or "{}")
+except json.JSONDecodeError:
+    extra = {}
+if isinstance(extra, dict):
+    data.update(extra)
 print(json.dumps(data))
 PY
 }

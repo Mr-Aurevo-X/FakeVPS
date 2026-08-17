@@ -68,6 +68,61 @@
       </dl>
     </article>
 
+    <article class="tile tile-telem">
+      <h2>Telemetry</h2>
+      <p class="muted telem-note">Live vs the 6 GB · 4 vCPU · 40 GB envelope — not the host</p>
+      <div class="gauges" aria-hidden="true">
+        <div class="gauge">
+          <svg viewBox="0 0 120 120">
+            <circle class="g-track" cx="60" cy="60" r="46"></circle>
+            <circle class="g-fill" id="g-ram" cx="60" cy="60" r="46"></circle>
+          </svg>
+          <strong id="g-ram-n">—</strong>
+          <span>RAM</span>
+        </div>
+        <div class="gauge">
+          <svg viewBox="0 0 120 120">
+            <circle class="g-track" cx="60" cy="60" r="46"></circle>
+            <circle class="g-fill" id="g-cpu" cx="60" cy="60" r="46"></circle>
+          </svg>
+          <strong id="g-cpu-n">—</strong>
+          <span>CPU</span>
+        </div>
+        <div class="gauge">
+          <svg viewBox="0 0 120 120">
+            <circle class="g-track" cx="60" cy="60" r="46"></circle>
+            <circle class="g-fill" id="g-disk" cx="60" cy="60" r="46"></circle>
+          </svg>
+          <strong id="g-disk-n">—</strong>
+          <span>Disk</span>
+        </div>
+      </div>
+      <dl class="telem-stats">
+        <div><dt>RAM used</dt><dd id="t-ram">—</dd></div>
+        <div><dt>CPU load</dt><dd id="t-cpu">—</dd></div>
+        <div><dt>Disk</dt><dd id="t-disk">—</dd></div>
+        <div><dt>Containers</dt><dd id="t-ct">—</dd></div>
+        <div><dt>Processes</dt><dd id="t-pids">—</dd></div>
+        <div><dt>Net in</dt><dd id="t-rx">—</dd></div>
+        <div><dt>Net out</dt><dd id="t-tx">—</dd></div>
+        <div><dt>Samples</dt><dd id="t-n">—</dd></div>
+      </dl>
+      <div class="charts">
+        <figure>
+          <figcaption>RAM <em id="cap-ram">%</em></figcaption>
+          <svg class="spark" id="chart-ram" viewBox="0 0 280 72" preserveAspectRatio="none"></svg>
+        </figure>
+        <figure>
+          <figcaption>CPU <em id="cap-cpu">%</em></figcaption>
+          <svg class="spark" id="chart-cpu" viewBox="0 0 280 72" preserveAspectRatio="none"></svg>
+        </figure>
+        <figure>
+          <figcaption>Disk <em id="cap-disk">%</em></figcaption>
+          <svg class="spark" id="chart-disk" viewBox="0 0 280 72" preserveAspectRatio="none"></svg>
+        </figure>
+      </div>
+    </article>
+
     <article class="tile">
       <h2>SSH</h2>
       <div class="term">

@@ -13,6 +13,169 @@ function setHealth(id, state) {
   }
 }
 
+const HIST_MAX = 36;
+const HIST_KEY = "fakevps-telem-v2";
+const GAUGE_C = 2 * Math.PI * 46;
+
+function loadHist() {
+  try {
+    const raw = sessionStorage.getItem(HIST_KEY);
+    const data = raw ? JSON.parse(raw) : null;
+    if (data && Array.isArray(data.ram)) return data;
+  } catch {
+    /* ignore */
+  }
+  return { ram: [], cpu: [], disk: [] };
+}
+
+function saveHist(hist) {
+  try {
+    sessionStorage.setItem(HIST_KEY, JSON.stringify(hist));
+  } catch {
+    /* ignore */
+  }
+}
+
+function pushHist(hist, key, value) {
+  hist[key].push(Number(value) || 0);
+  if (hist[key].length > HIST_MAX) hist[key].shift();
+}
+
+function usageClass(pct) {
+  if (pct >= 90) return "off";
+  if (pct >= 75) return "warn";
+  return "ok";
+}
+
+function setBar(id, pct) {
+  const el = $(id);
+  const n = Math.max(0, Math.min(100, Number(pct) || 0));
+  el.style.width = `${n}%`;
+  el.classList.remove("ok", "warn", "off");
+  el.classList.add(usageClass(n));
+}
+
+function svgEl(name, attrs) {
+  const el = document.createElementNS("http://www.w3.org/2000/svg", name);
+  for (const [key, value] of Object.entries(attrs)) el.setAttribute(key, value);
+  return el;
+}
+
+function drawSpark(svg, values, color) {
+  const w = 280;
+  const h = 72;
+  while (svg.firstChild) svg.removeChild(svg.firstChild);
+  for (const y of [18, 36, 54]) {
+    svg.append(svgEl("line", {
+      x1: "0", y1: String(y), x2: String(w), y2: String(y),
+      stroke: "rgba(255,255,255,0.06)", "stroke-width": "1",
+    }));
+  }
+  if (!values.length) return;
+  const step = values.length > 1 ? w / (values.length - 1) : w;
+  const pts = values.map((raw, i) => {
+    const v = Math.max(0, Math.min(100, Number(raw) || 0));
+    const x = i * step;
+    const y = h - (v / 100) * (h - 10) - 5;
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  });
+  const last = pts[pts.length - 1].split(",");
+  svg.append(
+    svgEl("polygon", {
+      fill: color,
+      opacity: "0.16",
+      points: `0,${h} ${pts.join(" ")} ${((values.length - 1) * step).toFixed(1)},${h}`,
+    }),
+    svgEl("polyline", {
+      fill: "none",
+      stroke: color,
+      "stroke-width": "2.2",
+      "stroke-linejoin": "round",
+      "stroke-linecap": "round",
+      points: pts.join(" "),
+    }),
+    svgEl("circle", { cx: last[0], cy: last[1], r: "3.2", fill: color }),
+  );
+}
+
+function setGauge(id, pct) {
+  const el = $(id);
+  const n = Math.max(0, Math.min(100, Number(pct) || 0));
+  el.style.strokeDasharray = String(GAUGE_C);
+  el.style.strokeDashoffset = String(GAUGE_C * (1 - n / 100));
+  el.classList.remove("ok", "warn", "off");
+  el.classList.add(usageClass(n));
+  $(`${id}-n`).textContent = `${n.toFixed(0)}%`;
+}
+
+function fmtRate(bps) {
+  const n = Number(bps) || 0;
+  if (n < 1024) return `${n.toFixed(0)} B/s`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB/s`;
+  return `${(n / (1024 * 1024)).toFixed(1)} MB/s`;
+}
+
+function updateTelemetry(s, online) {
+  const ramUsed = Number(s.ram_used_mb) || 0;
+  const ramTotal = Number(s.ram_total_mb) || Number(s.ram_mb) || 0;
+  const cpuPct = online ? Number(s.cpu_pct) || 0 : 0;
+  const diskUsed = Number(s.disk_used_gb) || 0;
+  const diskTotal = Number(s.disk_total_gb) || Number(s.disk_gb) || 0;
+  const ramPct = ramTotal ? (100 * ramUsed) / ramTotal : 0;
+  const diskPct = diskTotal ? (100 * diskUsed) / diskTotal : 0;
+  $("t-ram").textContent = online && ramTotal
+    ? `${(ramUsed / 1024).toFixed(1)} / ${(ramTotal / 1024).toFixed(1)} GB`
+    : "—";
+  $("t-cpu").textContent = online ? `${cpuPct.toFixed(0)}% · load ${s.load1 ?? "—"}` : "—";
+  $("t-disk").textContent = !online
+    ? "—"
+    : s.disk_pending
+      ? "measuring…"
+      : diskTotal
+        ? `${diskUsed} / ${diskTotal} GB`
+        : "—";
+  $("t-ct").textContent = online ? String(s.containers ?? "—") : "—";
+  $("t-pids").textContent = online && s.pids ? String(s.pids) : "—";
+  $("t-rx").textContent = online ? fmtRate(s.net_rx_bps) : "—";
+  $("t-tx").textContent = online ? fmtRate(s.net_tx_bps) : "—";
+  if (online && ramTotal) {
+    $("m-ram").textContent = `${(ramUsed / 1024).toFixed(1)} / ${Math.round(ramTotal / 1024)} GB`;
+  }
+  if (online && diskTotal && !s.disk_pending) {
+    $("m-disk").textContent = `${diskUsed} / ${Math.round(diskTotal)} GB`;
+  }
+  if (online) {
+    $("m-cpu").textContent = `${cpuPct.toFixed(0)}% · ${s.cpus || 4}`;
+  }
+  setBar("bar-ram", online ? ramPct : 0);
+  setBar("bar-cpu", online ? cpuPct : 0);
+  setBar("bar-disk", online ? diskPct : 0);
+  setGauge("g-ram", online ? ramPct : 0);
+  setGauge("g-cpu", online ? cpuPct : 0);
+  setGauge("g-disk", online ? diskPct : 0);
+  const hist = loadHist();
+  if (online) {
+    pushHist(hist, "ram", ramPct);
+    pushHist(hist, "cpu", cpuPct);
+    pushHist(hist, "disk", diskPct);
+    saveHist(hist);
+  }
+  const last = (arr) => arr[arr.length - 1] || 0;
+  const sparkColor = (pct) => {
+    const lvl = usageClass(pct);
+    if (lvl === "off") return "#ef4444";
+    if (lvl === "warn") return "#eab308";
+    return "#22c55e";
+  };
+  drawSpark($("chart-ram"), hist.ram, sparkColor(last(hist.ram)));
+  drawSpark($("chart-cpu"), hist.cpu, sparkColor(last(hist.cpu)));
+  drawSpark($("chart-disk"), hist.disk, sparkColor(last(hist.disk)));
+  $("cap-ram").textContent = online ? `${ramPct.toFixed(0)}%` : "%";
+  $("cap-cpu").textContent = online ? `${cpuPct.toFixed(0)}%` : "%";
+  $("cap-disk").textContent = online ? `${diskPct.toFixed(0)}%` : "%";
+  $("t-n").textContent = hist.ram.length ? String(hist.ram.length) : "—";
+}
+
 function fmtUptime(sec) {
   const n = Number(sec) || 0;
   if (!n) return "—";
@@ -254,6 +417,7 @@ function render(s) {
   $("m-cpu").textContent = String(s.cpus || 4);
   $("m-disk").textContent = `${s.disk_gb || 40} GB`;
   $("m-be").textContent = s.backend || "—";
+  updateTelemetry(s, online && !starting);
   $("ssh-cmd").textContent = `ssh -p ${s.ssh_port || 2222} ubuntu@127.0.0.1`;
   setHealth("h-ssh", s.ssh ? "ok" : s.running ? "warn" : "off");
   setHealth("h-docker", s.docker ? "ok" : s.ssh ? "warn" : "off");
