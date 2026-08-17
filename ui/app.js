@@ -738,7 +738,15 @@ $("diag").addEventListener("close", () => {
 });
 
 $("btn-up").addEventListener("click", () => power("/api/up"));
-$("btn-down").addEventListener("click", () => power("/api/down"));
+$("btn-down").addEventListener("click", () => {
+  if (lastStatus.ephemeral) {
+    const ok = window.confirm(
+      "Mode éphémère : l’extinction efface tout ce que le nœud a stocké (disque, images Docker, journaux). Continuer ?"
+    );
+    if (!ok) return;
+  }
+  power("/api/down");
+});
 $("btn-attach").addEventListener("click", attachBot);
 $("bot-path").addEventListener("keydown", (ev) => {
   if (ev.key === "Enter") attachBot();

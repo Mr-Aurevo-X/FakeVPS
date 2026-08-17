@@ -1,7 +1,7 @@
 # Shared FakeVPS helpers. Sourced by ./fakevps — do not execute directly.
 # Copyright (c) 2026 Mr-Aurevo-X
 
-FAKEVPS_VERSION="0.1.0"
+FAKEVPS_VERSION="0.2.0"
 
 load_config() {
   RAM_MB=6144

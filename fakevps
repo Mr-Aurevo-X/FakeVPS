@@ -33,10 +33,19 @@ Based on FakeVPS — https://github.com/Mr-Aurevo-X/FakeVPS
   ./fakevps sync            Re-rsync BOT_DIR
   ./fakevps restart-bot     Restart guest bot (systemd or compose)
   ./fakevps reset           Wipe disk/container and reprovision next up
+  ./fakevps doctor          Check the host before the first up
+  ./fakevps audit           Check secrets/state hygiene on this tree
   ./fakevps install-service [--fast|--kvm]  systemd --user unit
+  ./fakevps --version
 
 Windows: use WSL2, then ./fakevps up --fast
 EOF
+}
+
+cmd_version() {
+  printf 'FakeVPS %s\n' "$FAKEVPS_VERSION"
+  printf 'Copyright (c) 2026 Mr-Aurevo-X\n'
+  printf 'Based on FakeVPS — https://github.com/Mr-Aurevo-X/FakeVPS\n'
 }
 
 print_urls() {
@@ -334,6 +343,157 @@ cmd_reset() {
   log "reset complete — next up is a fresh node"
 }
 
+doctor_line() {
+  printf '  %-5s %s\n' "$1" "$2"
+}
+
+cmd_doctor() {
+  local be fails=0 warns=0 c
+  be="$(active_backend)"
+  printf 'FakeVPS doctor — backend: %s\n\n' "$be"
+
+  for c in python3 ssh rsync scp; do
+    if command -v "$c" >/dev/null 2>&1; then
+      doctor_line OK "$c present"
+    else
+      doctor_line FAIL "$c missing — install it"
+      fails=$((fails + 1))
+    fi
+  done
+
+  if [[ -e /dev/kvm ]]; then
+    if [[ -r /dev/kvm && -w /dev/kvm ]]; then
+      doctor_line OK "/dev/kvm accessible"
+    else
+      doctor_line WARN "/dev/kvm exists but not writable — add yourself to the kvm group"
+      warns=$((warns + 1))
+    fi
+  elif [[ "$be" == "kvm" ]]; then
+    doctor_line FAIL "/dev/kvm missing — no KVM here; use ./fakevps up --fast"
+    fails=$((fails + 1))
+  else
+    doctor_line WARN "/dev/kvm missing (fast backend unaffected)"
+    warns=$((warns + 1))
+  fi
+  if command -v qemu-system-x86_64 >/dev/null 2>&1; then
+    doctor_line OK "qemu-system-x86_64 present"
+  elif [[ "$be" == "kvm" ]]; then
+    doctor_line FAIL "qemu-system-x86_64 missing — install qemu, or use --fast"
+    fails=$((fails + 1))
+  else
+    doctor_line WARN "qemu-system-x86_64 missing (fast backend unaffected)"
+    warns=$((warns + 1))
+  fi
+
+  if command -v docker >/dev/null 2>&1; then
+    if docker info >/dev/null 2>&1; then
+      doctor_line OK "docker daemon reachable"
+    elif [[ "$be" == "fast" ]]; then
+      doctor_line FAIL "docker installed but the daemon is unreachable (permissions? service down?)"
+      fails=$((fails + 1))
+    else
+      doctor_line WARN "docker daemon unreachable (only matters for --fast)"
+      warns=$((warns + 1))
+    fi
+  elif [[ "$be" == "fast" ]]; then
+    doctor_line FAIL "docker missing — required for --fast"
+    fails=$((fails + 1))
+  else
+    doctor_line WARN "docker missing (only matters for --fast)"
+    warns=$((warns + 1))
+  fi
+
+  local avail_mb
+  avail_mb="$(awk '/MemAvailable/ {print int($2/1024)}' /proc/meminfo 2>/dev/null || echo 0)"
+  if (( avail_mb >= RAM_MB )); then
+    doctor_line OK "RAM available ${avail_mb} MB (node wants ${RAM_MB} MB)"
+  else
+    doctor_line WARN "RAM available ${avail_mb} MB < RAM_MB=${RAM_MB} — the node may swap or OOM"
+    warns=$((warns + 1))
+  fi
+
+  local avail_gb
+  avail_gb="$(df -BG --output=avail "$FAKEVPS_ROOT" 2>/dev/null | tail -1 | tr -dc '0-9')"
+  if [[ -n "$avail_gb" ]] && (( avail_gb >= DISK_GB )); then
+    doctor_line OK "disk free ${avail_gb} GB (node wants ${DISK_GB} GB)"
+  else
+    doctor_line WARN "disk free ${avail_gb:-?} GB < DISK_GB=${DISK_GB}"
+    warns=$((warns + 1))
+  fi
+
+  local port
+  for port in "$SSH_PORT" "$UI_PORT"; do
+    if host_bind_ok "$port"; then
+      if guest_is_up || ui_running; then
+        doctor_line OK "port ${port} in use by this node"
+      else
+        doctor_line WARN "port ${port} already in use by something else"
+        warns=$((warns + 1))
+      fi
+    else
+      doctor_line OK "port ${port} free"
+    fi
+  done
+
+  if grep -qi microsoft /proc/version 2>/dev/null; then
+    doctor_line INFO "WSL detected — recommended: ./fakevps up --fast (and RAM in %UserProfile%\\.wslconfig)"
+  fi
+
+  printf '\n%d fail, %d warn\n' "$fails" "$warns"
+  (( fails == 0 )) || exit 1
+}
+
+cmd_audit() {
+  local fails=0 perm f
+  printf 'FakeVPS audit — %s\n\n' "$(display_bot_dir "$FAKEVPS_ROOT")"
+
+  if [[ -d "$SECRETS_DIR" ]]; then
+    perm="$(stat -c '%a' "$SECRETS_DIR" 2>/dev/null || echo '?')"
+    if [[ "$perm" == "700" ]]; then
+      doctor_line OK "secrets/ is 700"
+    else
+      doctor_line WARN "secrets/ is $perm — fix: chmod 700 secrets"
+    fi
+    for f in "$SECRETS_DIR"/*.env "$SSH_KEY"; do
+      [[ -f "$f" ]] || continue
+      perm="$(stat -c '%a' "$f" 2>/dev/null || echo '?')"
+      if [[ "$perm" == "600" ]]; then
+        doctor_line OK "$(basename "$f") is 600"
+      else
+        doctor_line FAIL "$(basename "$f") is $perm — fix: chmod 600 secrets/$(basename "$f")"
+        fails=$((fails + 1))
+      fi
+    done
+  fi
+
+  if command -v git >/dev/null 2>&1 && [[ -d "$FAKEVPS_ROOT/.git" ]]; then
+    for f in config.env secrets/discord.env; do
+      if git -C "$FAKEVPS_ROOT" ls-files --error-unmatch "$f" >/dev/null 2>&1; then
+        doctor_line FAIL "$f is tracked by git — remove it: git rm --cached $f"
+        fails=$((fails + 1))
+      else
+        doctor_line OK "$f not tracked by git"
+      fi
+    done
+    if git -C "$FAKEVPS_ROOT" ls-files -- 'state/*' 2>/dev/null | grep -q .; then
+      doctor_line FAIL "state/ has tracked files — it must stay untracked"
+      fails=$((fails + 1))
+    else
+      doctor_line OK "state/ not tracked by git"
+    fi
+  fi
+
+  if compgen -G "$STATE_DIR/.env.inject.*" >/dev/null; then
+    doctor_line FAIL "leftover injected env in state/ — fix: rm state/.env.inject.*"
+    fails=$((fails + 1))
+  else
+    doctor_line OK "no leftover injected env in state/"
+  fi
+
+  printf '\n%d fail\n' "$fails"
+  (( fails == 0 )) || exit 1
+}
+
 cmd_install_service() {
   local mode up_args unit_dir
   mode="$(active_backend)"
@@ -375,7 +535,10 @@ main() {
     restart-bot) cmd_restart_bot "$@" ;;
     metrics) cmd_metrics "$@" ;;
     reset) cmd_reset "$@" ;;
+    doctor) cmd_doctor "$@" ;;
+    audit) cmd_audit "$@" ;;
     install-service) cmd_install_service "$@" ;;
+    -V|--version|version) cmd_version ;;
     -h|--help|help|"") usage ;;
     *) die "unknown command: $cmd" ;;
   esac
