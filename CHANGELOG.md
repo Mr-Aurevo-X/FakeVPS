@@ -15,6 +15,8 @@ All notable changes to FakeVPS. Based on FakeVPS — https://github.com/Mr-Aurev
 - Cockpit **live deploy stream** — `attach` output fills the journal line by line while pnpm/docker work.
 - Cockpit **Bot logs** dialog — last journalctl/docker lines from the guest, one click.
 - Cockpit is **bilingual** (FR/EN): language auto-detected from the browser, FR/EN toggle in the header, diagnostics included.
+- `./fakevps snapshot list|save|restore|rm` — qcow2 snapshots of the node disk (kvm backend, node stopped).
+- **Post-deploy healthcheck** — after `attach`, the guest waits for a bot process that survives its first seconds; on failure it prints the journal tail and the deploy reports an error (crash-loops and bad tokens surface immediately).
 
 ### Changed
 - Bot deploys are guarded: compose env preflight with the exact list of missing keys, Prisma migrate skipped without `DATABASE_URL`, monorepo build via root `build:ci`/`build`, and **no systemd unit is installed when the build fails** (attach reports the failure).

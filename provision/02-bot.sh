@@ -325,4 +325,34 @@ case "$rt" in
     ;;
 esac
 
-log "bot start requested"
+# Post-deploy healthcheck: a deploy only counts when a bot process survives
+# its first seconds. Catches bad tokens and crash-loops right away.
+bot_process_up() {
+  systemctl is-active --quiet discord-bot.service 2>/dev/null || compose_has_bot_container
+}
+
+healthcheck() {
+  local tries=0
+  log "healthcheck: waiting for the bot process"
+  sleep 6
+  while (( tries < 8 )); do
+    if bot_process_up; then
+      sleep 4
+      if bot_process_up; then
+        log "healthcheck OK — the bot process is up and stayed up"
+        return 0
+      fi
+      log "healthcheck: the bot started then died — likely a crash-loop"
+    fi
+    sleep 2
+    tries=$((tries + 1))
+  done
+  log "healthcheck FAILED — no stable bot process; last logs:"
+  journalctl -u discord-bot -n 25 --no-pager 2>/dev/null || true
+  docker ps -a --format '{{.Names}}  {{.Status}}' 2>/dev/null || true
+  log "bot deploy failed the healthcheck — fix the errors above, then ./fakevps attach again"
+  return 1
+}
+
+healthcheck || exit 1
+log "bot deploy complete"

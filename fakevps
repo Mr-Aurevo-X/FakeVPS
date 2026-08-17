@@ -33,6 +33,7 @@ Based on FakeVPS — https://github.com/Mr-Aurevo-X/FakeVPS
   ./fakevps sync            Re-rsync BOT_DIR
   ./fakevps restart-bot     Restart guest bot (systemd or compose)
   ./fakevps reset           Wipe disk/container and reprovision next up
+  ./fakevps snapshot [list|save <name>|restore <name>|rm <name>]  (kvm, node stopped)
   ./fakevps doctor          Check the host before the first up
   ./fakevps audit           Check secrets/state hygiene on this tree
   ./fakevps install-service [--fast|--kvm]  systemd --user unit
@@ -342,6 +343,48 @@ cmd_reset() {
   log "reset complete — next up is a fresh node"
 }
 
+cmd_snapshot() {
+  local be action name disk
+  be="$(active_backend)"
+  action="${1:-list}"
+  shift || true
+  name="${1:-}"
+  if [[ "$be" != "kvm" ]]; then
+    die "snapshots need the kvm backend — the fast node is disposable, re-run ./fakevps attach instead"
+  fi
+  require_cmd qemu-img
+  disk="$(qemu_disk_path)"
+  [[ -f "$disk" ]] || die "no node disk yet — run ./fakevps up first"
+  case "$action" in
+    list)
+      qemu-img snapshot -l "$disk"
+      ;;
+    save|restore|rm)
+      [[ -n "$name" ]] || die "usage: ./fakevps snapshot $action <name>"
+      if guest_is_up; then
+        die "stop the node first: ./fakevps down"
+      fi
+      case "$action" in
+        save)
+          qemu-img snapshot -c "$name" "$disk"
+          log "snapshot '$name' saved"
+          ;;
+        restore)
+          qemu-img snapshot -a "$name" "$disk"
+          log "snapshot '$name' restored — ./fakevps up boots it"
+          ;;
+        rm)
+          qemu-img snapshot -d "$name" "$disk"
+          log "snapshot '$name' deleted"
+          ;;
+      esac
+      ;;
+    *)
+      die "usage: ./fakevps snapshot [list|save <name>|restore <name>|rm <name>]"
+      ;;
+  esac
+}
+
 doctor_line() {
   printf '  %-5s %s\n' "$1" "$2"
 }
@@ -534,6 +577,7 @@ main() {
     restart-bot) cmd_restart_bot "$@" ;;
     metrics) cmd_metrics "$@" ;;
     reset) cmd_reset "$@" ;;
+    snapshot) cmd_snapshot "$@" ;;
     doctor) cmd_doctor "$@" ;;
     audit) cmd_audit "$@" ;;
     install-service) cmd_install_service "$@" ;;
