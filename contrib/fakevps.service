@@ -1,0 +1,14 @@
+[Unit]
+Description=FakeVPS local pre-VPS node
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=@FAKEVPS_ROOT@
+ExecStart=@FAKEVPS_ROOT@/fakevps up
+ExecStop=@FAKEVPS_ROOT@/fakevps down
+
+[Install]
+WantedBy=default.target
