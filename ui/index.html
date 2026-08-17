@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>FakeVPS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="aurora" aria-hidden="true"></div>
+  <header class="top">
+    <div class="brand">
+      <span class="mark">F</span>
+      <div>
+        <h1>FakeVPS</h1>
+        <p class="tag">Pre-VPS rehearsal node</p>
+      </div>
+    </div>
+    <div class="pill" id="pill">
+      <span class="dot" id="dot"></span>
+      <span id="pill-label">offline</span>
+    </div>
+  </header>
+
+  <main class="grid">
+    <article class="tile tile-power">
+      <h2>Power</h2>
+      <p class="muted" id="uptime">Uptime —</p>
+      <div class="actions">
+        <button type="button" id="btn-up" class="btn primary">Start</button>
+        <button type="button" id="btn-down" class="btn">Stop</button>
+      </div>
+    </article>
+
+    <article class="tile">
+      <h2>Node</h2>
+      <dl class="metrics">
+        <div><dt>RAM</dt><dd id="m-ram">6 GB</dd></div>
+        <div><dt>vCPU</dt><dd id="m-cpu">4</dd></div>
+        <div><dt>Disk</dt><dd id="m-disk">40 GB</dd></div>
+        <div><dt>Backend</dt><dd id="m-be">—</dd></div>
+      </dl>
+    </article>
+
+    <article class="tile">
+      <h2>SSH</h2>
+      <code class="cmd" id="ssh-cmd">ssh -p 2222 ubuntu@127.0.0.1</code>
+      <button type="button" class="btn ghost" id="btn-copy">Copy</button>
+    </article>
+
+    <article class="tile">
+      <h2>Bot panel</h2>
+      <p class="muted" id="panel-msg">Pas d’UI — aucun port configuré</p>
+      <a class="btn primary hidden" id="panel-link" href="#">Open panel</a>
+    </article>
+
+    <article class="tile">
+      <h2>Health</h2>
+      <ul class="health">
+        <li id="h-ssh">SSH</li>
+        <li id="h-docker">Docker</li>
+        <li id="h-bot">Bot</li>
+        <li id="h-ui">Cockpit</li>
+      </ul>
+    </article>
+
+    <article class="tile tile-log">
+      <h2>Activity</h2>
+      <pre id="log" class="log">waiting for status…</pre>
+    </article>
+  </main>
+
+  <footer>
+    localhost only · 127.0.0.1
+  </footer>
+  <script src="app.js"></script>
+</body>
+</html>
