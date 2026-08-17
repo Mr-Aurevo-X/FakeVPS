@@ -1,0 +1,26 @@
+#cloud-config
+hostname: fakevps
+manage_etc_hosts: true
+users:
+  - name: ubuntu
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    groups: sudo
+    shell: /bin/bash
+    lock_passwd: true
+    ssh_authorized_keys:
+      - @SSH_PUBKEY@
+package_update: true
+packages:
+  - ca-certificates
+  - curl
+  - jq
+write_files:
+  - path: /etc/motd
+    permissions: "0644"
+    content: |
+      FakeVPS node — 6 GB RAM / 4 vCPU / 40 GB disk
+      SSH: ubuntu@this-host  |  cockpit stays on the workstation
+  - path: /etc/hostname
+    content: fakevps
+runcmd:
+  - hostnamectl set-hostname fakevps || true
