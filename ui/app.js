@@ -1,3 +1,5 @@
+/* FakeVPS — Mr-Aurevo-X. Copyright (c) 2026 Mr-Aurevo-X */
+
 const $ = (id) => document.getElementById(id);
 
 function setHealth(id, ok) {
@@ -20,10 +22,17 @@ async function api(path, opts) {
 }
 
 function render(s) {
+  const starting = Boolean(s.starting);
   const online = Boolean(s.running && s.ssh);
-  $("pill").classList.toggle("online", online);
-  $("pill").classList.toggle("booting", Boolean(s.running && !s.ssh));
-  $("pill-label").textContent = online ? "online" : s.running ? "booting" : "offline";
+  $("pill").classList.toggle("online", online && !starting);
+  $("pill").classList.toggle("booting", Boolean(starting || (s.running && !s.ssh)));
+  $("pill-label").textContent = starting
+    ? "starting"
+    : online
+      ? "online"
+      : s.running
+        ? "booting"
+        : "offline";
   $("uptime").textContent = fmtUptime(s.uptime_sec);
   $("m-ram").textContent = `${Math.round((s.ram_mb || 0) / 1024)} GB`;
   $("m-cpu").textContent = String(s.cpus || 4);
@@ -42,6 +51,20 @@ function render(s) {
     $("panel-msg").classList.remove("hidden");
     $("panel-link").classList.add("hidden");
   }
+  const botDir = s.bot_dir || "";
+  if (botDir) {
+    $("bot-hint").classList.add("hidden");
+    $("bot-attached").classList.remove("hidden");
+    $("bot-dir").textContent = botDir;
+  } else {
+    $("bot-hint").classList.remove("hidden");
+    $("bot-attached").classList.add("hidden");
+  }
+  if (s.activity) {
+    $("log").textContent = s.activity;
+  } else if (starting) {
+    $("log").textContent = "starting…";
+  }
 }
 
 async function refresh() {
@@ -56,9 +79,10 @@ async function refresh() {
 async function power(path) {
   $("btn-up").disabled = true;
   $("btn-down").disabled = true;
+  $("log").textContent = path === "/api/up" ? "starting…" : "stopping…";
   try {
     const out = await api(path, { method: "POST" });
-    $("log").textContent = out.log || "ok";
+    $("log").textContent = out.log || (out.already_online ? "already online" : "ok");
   } catch (err) {
     $("log").textContent = String(err.message || err);
   } finally {
@@ -68,8 +92,31 @@ async function power(path) {
   }
 }
 
+async function attachBot() {
+  const dir = $("bot-path").value.trim();
+  $("log").textContent = "attaching bot…";
+  $("btn-attach").disabled = true;
+  try {
+    const out = await api("/api/attach", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ dir }),
+    });
+    $("log").textContent = out.log || "attached";
+  } catch (err) {
+    $("log").textContent = String(err.message || err);
+  } finally {
+    $("btn-attach").disabled = false;
+    refresh();
+  }
+}
+
 $("btn-up").addEventListener("click", () => power("/api/up"));
 $("btn-down").addEventListener("click", () => power("/api/down"));
+$("btn-attach").addEventListener("click", attachBot);
+$("bot-path").addEventListener("keydown", (ev) => {
+  if (ev.key === "Enter") attachBot();
+});
 $("btn-copy").addEventListener("click", async () => {
   await navigator.clipboard.writeText($("ssh-cmd").textContent);
   $("btn-copy").textContent = "Copied";

@@ -1,9 +1,10 @@
 # Copy guest scripts and optionally deploy a bot.
+# Copyright (c) 2026 Mr-Aurevo-X
 
 push_provision_scripts() {
   guest_ssh "mkdir -p /home/ubuntu/fakevps-provision"
   # shellcheck disable=SC2046
-  scp $(ssh_opts) \
+  scp $(scp_opts) \
     "$FAKEVPS_ROOT/provision/01-packages.sh" \
     "$FAKEVPS_ROOT/provision/02-bot.sh" \
     "$FAKEVPS_ROOT/provision/detect-runtime.sh" \
@@ -18,7 +19,7 @@ provision_packages() {
 
 provision_bot() {
   if [[ -z "${BOT_DIR}" ]]; then
-    log "BOT_DIR empty — fresh VPS, no bot"
+    log "BOT_DIR empty — no bot (token in secrets/discord.env, then ./fakevps attach ~/bot)"
     return 0
   fi
   sync_bot_tree "$BOT_DIR"
@@ -38,12 +39,26 @@ marker_path() {
 }
 
 first_boot_provision() {
+  # Never abort `up` here: a failed scp/bot must not kill the cockpit (set -e parent).
   if [[ -f "$(marker_path)" ]]; then
     if [[ -n "${BOT_DIR}" ]]; then
-      provision_bot
+      provision_bot || log "bot deploy failed — node stays up; retry ./fakevps attach <dir>"
     fi
     return 0
   fi
-  provision_all
+  if ! push_provision_scripts; then
+    log "could not copy provision scripts — node is up; cockpit still available"
+    return 0
+  fi
+  if ! provision_packages; then
+    log "guest package install failed — node is up; cockpit still available"
+    return 0
+  fi
+  if [[ -z "${BOT_DIR}" ]]; then
+    log "no bot attached — put token in secrets/discord.env then ./fakevps attach ~/bot"
+  else
+    provision_bot || log "bot deploy failed — packages are installed; retry ./fakevps attach <dir>"
+  fi
   date -Iseconds >"$(marker_path)"
+  return 0
 }

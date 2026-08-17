@@ -1,3 +1,5 @@
+# FakeVPS guest image — Ubuntu 24.04 systemd node
+# Copyright (c) 2026 Mr-Aurevo-X
 FROM ubuntu:24.04
 
 ENV container=docker
@@ -10,7 +12,7 @@ RUN apt-get update \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-RUN useradd -m -s /bin/bash ubuntu \
+RUN (id ubuntu >/dev/null 2>&1 || useradd -m -s /bin/bash ubuntu) \
     && echo 'ubuntu ALL=(ALL) NOPASSWD:ALL' >/etc/sudoers.d/ubuntu \
     && chmod 440 /etc/sudoers.d/ubuntu \
     && mkdir -p /home/ubuntu/.ssh /run/sshd \
@@ -19,7 +21,7 @@ RUN useradd -m -s /bin/bash ubuntu \
     && printf 'FakeVPS node — 6 GB RAM / 4 vCPU / 40 GB disk\nSSH: ubuntu@this-host\n' >/etc/motd \
     && echo fakevps >/etc/hostname \
     && systemctl enable ssh \
-    && systemctl mask systemd-resolved.service || true
+    && (systemctl mask systemd-resolved.service || true)
 
 STOPSIGNAL SIGRTMIN+3
 CMD ["/lib/systemd/systemd"]

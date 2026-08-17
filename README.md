@@ -1,6 +1,6 @@
 # FakeVPS
 
-Start/stop a local Ubuntu node that behaves like a mid-range paid VPS (6 GB / 4 vCPU, SSH, systemd, Docker **inside** the guest). Rehearse a real deploy before you buy the box.
+A **Mr-Aurevo-X** tool: start/stop a local Ubuntu node that behaves like a mid-range paid VPS (6 GB / 4 vCPU, SSH, systemd, Docker **inside** the guest). Rehearse a real deploy before you buy the box.
 
 Multipass gives you a VM. FakeVPS rehearses the VPS you would pay for — plus a localhost cockpit.
 
@@ -81,4 +81,4 @@ Programme local pour répéter un VPS payant avant l’achat. `./fakevps up` dé
 
 ## License
 
-MIT
+MIT — Copyright (c) 2026 Mr-Aurevo-X

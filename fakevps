@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # FakeVPS — start/stop a local Ubuntu node that feels like a paid VPS.
+# Copyright (c) 2026 Mr-Aurevo-X
 set -euo pipefail
 
 FAKEVPS_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -34,8 +35,18 @@ Windows: use WSL2, then ./fakevps up --fast
 EOF
 }
 
+print_urls() {
+  printf '\n  Cockpit  http://127.0.0.1:%s\n' "$UI_PORT"
+  printf '  SSH      ssh -p %s %s@127.0.0.1\n' "$SSH_PORT" "$SSH_USER"
+  if [[ -n "${BOT_PANEL_PORT}" ]]; then
+    printf '  Panel    http://127.0.0.1:%s\n' "$BOT_PANEL_PORT"
+  fi
+  printf '\n'
+}
+
 cmd_up() {
-  local mode="$BACKEND"
+  local mode
+  mode="$(active_backend)"
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --fast) mode=fast; shift ;;
@@ -46,24 +57,27 @@ cmd_up() {
   ensure_dirs
   ensure_ssh_key
   if [[ -z "${FAKEVPS_SKIP_UI:-}" ]]; then
-    ui_start
+    ui_start || log "cockpit not listening yet — node start continues"
+  fi
+  if guest_is_up; then
+    log "already online — not starting a second node"
+    print_urls
+    return 0
   fi
   if [[ "$mode" == "fast" ]]; then
     fast_up
   else
     qemu_up
   fi
-  wait_ssh
-  first_boot_provision
+  if ! wait_ssh; then
+    print_urls
+    return 1
+  fi
+  first_boot_provision || log "provision reported errors — cockpit still available"
   if [[ -z "${FAKEVPS_SKIP_UI:-}" ]]; then
     open_url "http://127.0.0.1:${UI_PORT}"
   fi
-  printf '\n  Cockpit  http://127.0.0.1:%s\n' "$UI_PORT"
-  printf '  SSH      ssh -p %s %s@127.0.0.1\n' "$SSH_PORT" "$SSH_USER"
-  if [[ -n "${BOT_PANEL_PORT}" ]]; then
-    printf '  Panel    http://127.0.0.1:%s\n' "$BOT_PANEL_PORT"
-  fi
-  printf '\n'
+  print_urls
 }
 
 cmd_down() {
@@ -194,6 +208,7 @@ cmd_attach() {
   else
     log "node is down — bot will deploy on next ./fakevps up"
   fi
+  printf '  Cockpit  http://127.0.0.1:%s\n' "$UI_PORT"
 }
 
 cmd_sync() {
@@ -239,6 +254,7 @@ main() {
     -h|--help|help|"") usage ;;
     *) die "unknown command: $cmd" ;;
   esac
+  reclaim_runtime_dirs
 }
 
 main "$@"

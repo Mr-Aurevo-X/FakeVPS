@@ -1,4 +1,5 @@
 # QEMU/KVM backend — 6 GB / 4 vCPU, localhost hostfwd.
+# Copyright (c) 2026 Mr-Aurevo-X
 
 CLOUD_IMG_URL="https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img"
 CLOUD_IMG_NAME="noble-server-cloudimg-amd64.img"

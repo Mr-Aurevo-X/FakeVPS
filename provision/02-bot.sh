@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Detect and start a generic Discord bot in /home/ubuntu/app.
+# Copyright (c) 2026 Mr-Aurevo-X
 set -euo pipefail
 
 APP="${APP_DIR:-/home/ubuntu/app}"

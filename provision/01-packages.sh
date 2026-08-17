@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # First-boot guest packages: Docker, swap, firewall.
+# Copyright (c) 2026 Mr-Aurevo-X
 set -euo pipefail
 
 log() { printf '[guest] %s\n' "$*"; }

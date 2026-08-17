@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Print compose|docker|node|python|none for a bot directory.
+# Copyright (c) 2026 Mr-Aurevo-X
 set -euo pipefail
 
 APP="${1:-.}"

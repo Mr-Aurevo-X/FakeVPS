@@ -1,4 +1,5 @@
 # Docker systemd backend — same SSH/ports as KVM, faster iteration.
+# Copyright (c) 2026 Mr-Aurevo-X
 
 FAST_IMAGE="fakevps-ubuntu:24.04"
 FAST_NAME="fakevps"

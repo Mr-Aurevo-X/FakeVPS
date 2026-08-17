@@ -1,4 +1,5 @@
 # Shared FakeVPS helpers. Sourced by ./fakevps — do not execute directly.
+# Copyright (c) 2026 Mr-Aurevo-X
 
 FAKEVPS_VERSION="0.1.0"
 
@@ -29,8 +30,25 @@ load_config() {
   LOG_FILE="$STATE_DIR/logs/fakevps.log"
 }
 
+reclaim_runtime_dirs() {
+  # If this CLI ran as root, give state/secrets back to the repo owner (not root).
+  [[ "$(id -u)" -eq 0 ]] || return 0
+  local owner grp
+  if [[ -n "${SUDO_USER:-}" ]]; then
+    owner="$SUDO_USER"
+    grp="$SUDO_USER"
+  else
+    owner="$(stat -c '%U' "$FAKEVPS_ROOT" 2>/dev/null || true)"
+    grp="$(stat -c '%G' "$FAKEVPS_ROOT" 2>/dev/null || true)"
+  fi
+  if [[ -n "$owner" && "$owner" != "root" ]]; then
+    chown -R "${owner}:${grp:-$owner}" "$STATE_DIR" "$SECRETS_DIR" 2>/dev/null || true
+  fi
+}
+
 ensure_dirs() {
   mkdir -p "$STATE_DIR/kvm" "$STATE_DIR/fast" "$STATE_DIR/images" "$STATE_DIR/logs" "$SECRETS_DIR"
+  reclaim_runtime_dirs
 }
 
 log() {
@@ -64,17 +82,17 @@ set_backend() {
 
 host_bind_ok() {
   local port="$1"
-  ss -ltn 2>/dev/null | grep -q "127.0.0.1:${port} " && return 0
-  ss -ltn 2>/dev/null | grep -q "127.0.0.1:${port}$" && return 0
-  return 1
+  ss -ltn 2>/dev/null | grep -E -q "127\\.0\\.0\\.1:${port}([[:space:]]|$)"
 }
 
 open_url() {
   local url="$1"
   if command -v xdg-open >/dev/null 2>&1; then
-    xdg-open "$url" >/dev/null 2>&1 || true
+    xdg-open "$url" >/dev/null 2>&1 &
+    disown $! 2>/dev/null || true
   elif command -v wslview >/dev/null 2>&1; then
-    wslview "$url" >/dev/null 2>&1 || true
+    wslview "$url" >/dev/null 2>&1 &
+    disown $! 2>/dev/null || true
   fi
 }
 

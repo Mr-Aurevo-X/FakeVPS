@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- FakeVPS — Mr-Aurevo-X. Copyright (c) 2026 Mr-Aurevo-X -->
 <html lang="en">
 <head>
   <meta charset="utf-8" />
@@ -10,13 +11,16 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
+  <div class="vignette" aria-hidden="true"></div>
+  <div class="grain" aria-hidden="true"></div>
   <div class="aurora" aria-hidden="true"></div>
   <header class="top">
     <div class="brand">
-      <span class="mark">F</span>
+      <span class="mark" aria-hidden="true">F</span>
       <div>
+        <p class="eyebrow">Local rehearsal</p>
         <h1>FakeVPS</h1>
-        <p class="tag">Pre-VPS rehearsal node</p>
+        <p class="tag">Ubuntu node · 6 GB · 4 vCPU</p>
       </div>
     </div>
     <div class="pill" id="pill">
@@ -52,7 +56,13 @@
     </article>
 
     <article class="tile">
-      <h2>Bot panel</h2>
+      <h2>Bot</h2>
+      <p class="muted" id="bot-hint">Put the token in secrets/discord.env then ./fakevps attach ~/bot</p>
+      <p class="muted hidden" id="bot-attached">Attached <code id="bot-dir"></code></p>
+      <div class="attach-row">
+        <input type="text" id="bot-path" class="field" placeholder="~/bot" autocomplete="off" />
+        <button type="button" id="btn-attach" class="btn">Attach</button>
+      </div>
       <p class="muted" id="panel-msg">Pas d’UI — aucun port configuré</p>
       <a class="btn primary hidden" id="panel-link" href="#">Open panel</a>
     </article>
@@ -69,12 +79,13 @@
 
     <article class="tile tile-log">
       <h2>Activity</h2>
-      <pre id="log" class="log">waiting for status…</pre>
+      <pre id="log" class="log">checking node…</pre>
     </article>
   </main>
 
   <footer>
-    localhost only · 127.0.0.1
+    <p class="foot-line">localhost only · 127.0.0.1</p>
+    <p class="foot-brand">Mr-Aurevo-X</p>
   </footer>
   <script src="app.js"></script>
 </body>

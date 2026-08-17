@@ -1,4 +1,5 @@
 # SSH helpers for the guest.
+# Copyright (c) 2026 Mr-Aurevo-X
 
 ensure_ssh_key() {
   if [[ ! -f "$SSH_KEY" ]]; then
@@ -13,6 +14,17 @@ ssh_opts() {
   printf '%s\n' \
     -i "$SSH_KEY" \
     -p "$SSH_PORT" \
+    -o "StrictHostKeyChecking=accept-new" \
+    -o "UserKnownHostsFile=$KNOWN_HOSTS" \
+    -o "ConnectTimeout=5" \
+    -o "LogLevel=ERROR"
+}
+
+# scp uses -P for port; -p means "preserve times" and would try to stat the port.
+scp_opts() {
+  printf '%s\n' \
+    -i "$SSH_KEY" \
+    -P "$SSH_PORT" \
     -o "StrictHostKeyChecking=accept-new" \
     -o "UserKnownHostsFile=$KNOWN_HOSTS" \
     -o "ConnectTimeout=5" \
@@ -36,7 +48,8 @@ wait_ssh() {
     sleep 2
     i=$((i + 2))
   done
-  die "SSH did not become ready within ${timeout}s"
+  log "SSH did not become ready within ${timeout}s"
+  return 1
 }
 
 sync_bot_tree() {
@@ -64,7 +77,7 @@ inject_bot_env() {
   if [[ -f "$SECRETS_DIR/discord.env" ]]; then
     guest_ssh "mkdir -p /home/ubuntu/app"
     # shellcheck disable=SC2046
-    scp $(ssh_opts) "$SECRETS_DIR/discord.env" "${SSH_USER}@127.0.0.1:${dest_env}"
+    scp $(scp_opts) "$SECRETS_DIR/discord.env" "${SSH_USER}@127.0.0.1:${dest_env}"
     guest_ssh "chmod 600 $dest_env"
     log "injected secrets/discord.env → $dest_env"
   else
