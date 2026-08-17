@@ -14,6 +14,15 @@ assert used == 3072 and total == 6144, (used, total)
 # Host leak must not win: missing max falls back to envelope.
 used, total = m.ram_pair(16_000 * 1024 * 1024, 0, 6144)
 assert total == 6144 and used == 6144, (used, total)
+# Docker working set: drop inactive page cache (host file cache on bind mounts).
+# Live bug: current ~5.04 GiB, docker stats ~2.98 GiB.
+current = 5413789696
+inactive = current - 3204445962
+assert m.working_set_bytes(current, inactive) == 3204445962
+used, total = m.ram_pair(current, 6442450944, 6144, inactive)
+assert total == 6144
+assert used == m.bytes_to_mb(3204445962)
+assert used < 3500, used
 
 pct = m.cpu_percent(1_000_000, 100.0, 1_000_000 + 2_000_000, 102.0, 4)
 # 2.0 cpu-sec over 2.0 wall-sec on 4 CPUs = 25%
@@ -28,7 +37,8 @@ out, nxt = m.build({
     "cpus": 4,
     "disk_gb": 40,
     "now": 200.0,
-    "memory_current": 3221225472,
+    "memory_current": 5413789696,
+    "memory_inactive_file": 5413789696 - 3204445962,
     "memory_max": 6442450944,
     "usage_usec": 3_000_000,
     "disk_used_gb": 12.34,
@@ -38,8 +48,9 @@ out, nxt = m.build({
     "tx": 3000,
     "prev": {"t": 198.0, "usage_usec": 1_000_000, "rx": 1000, "tx": 1000},
 })
-assert out["ram_used_mb"] == 3072
+assert out["ram_used_mb"] == m.bytes_to_mb(3204445962)
 assert out["ram_total_mb"] == 6144
+assert out["ram_used_mb"] < 3500
 assert out["cpu_pct"] == 25.0
 assert out["disk_used_gb"] == 12.3
 assert out["disk_total_gb"] == 40.0

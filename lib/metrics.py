@@ -25,6 +25,11 @@ def bytes_to_mb(n: int) -> int:
     return max(int(n) // (1024 * 1024), 0)
 
 
+def working_set_bytes(current: int, inactive_file: int) -> int:
+    """Same formula as `docker stats`: usage minus reclaimable file cache."""
+    return max(int(current) - max(int(inactive_file), 0), 0)
+
+
 def cpu_percent(
     prev_usec: int,
     prev_t: float,
@@ -50,11 +55,16 @@ def net_bps(prev_bytes: int, prev_t: float, cur_bytes: int, cur_t: float) -> int
     return int(delta / (cur_t - prev_t))
 
 
-def ram_pair(current_bytes: int, max_bytes: int, ram_mb: int) -> tuple[int, int]:
+def ram_pair(
+    current_bytes: int,
+    max_bytes: int,
+    ram_mb: int,
+    inactive_file: int = 0,
+) -> tuple[int, int]:
     total = bytes_to_mb(max_bytes) if max_bytes > 0 else int(ram_mb)
     if total <= 0:
         total = int(ram_mb)
-    used = min(bytes_to_mb(current_bytes), total)
+    used = min(bytes_to_mb(working_set_bytes(current_bytes, inactive_file)), total)
     return used, total
 
 
@@ -106,6 +116,7 @@ def build(sample: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
         parse_u64(sample.get("memory_current")),
         parse_u64(sample.get("memory_max")),
         ram_mb,
+        parse_u64(sample.get("memory_inactive_file")),
     )
     disk_used = float(sample.get("disk_used_gb") or 0)
     metrics = {

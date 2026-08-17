@@ -59,9 +59,22 @@ with open("/proc/meminfo", encoding="utf-8") as fh:
 total = mem.get("MemTotal", 0) // 1024
 avail = mem.get("MemAvailable", mem.get("MemFree", 0)) // 1024
 used = max(total - avail, 0)
+# Privileged fast node sees the host /proc. Never publish that as VPS RAM.
 if total > int(ram_cap * 1.15):
-    total = ram_cap
-    used = min(used, total)
+    print(json.dumps({
+        "ram_used_mb": 0,
+        "ram_total_mb": ram_cap,
+        "load1": 0.0,
+        "cpu_pct": 0.0,
+        "disk_used_gb": 0.0,
+        "disk_total_gb": disk_cap,
+        "containers": 0,
+        "pids": 0,
+        "rx": 0,
+        "tx": 0,
+        "host_proc": True,
+    }))
+    raise SystemExit
 load1 = 0.0
 try:
     with open("/proc/loadavg", encoding="utf-8") as fh:
@@ -94,7 +107,7 @@ print(json.dumps({
     "ram_total_mb": total,
     "load1": round(load1, 2),
     "cpu_pct": min(100.0, round(100.0 * load1 / cpus, 1)),
-    "disk_used_gb": round(du.used / (1024 ** 3), 1),
+    "disk_used_gb": round(min(du.used / (1024 ** 3), disk_cap), 1),
     "disk_total_gb": round(disk_cap, 1),
     "containers": containers,
     "pids": pids,

@@ -14,7 +14,7 @@ function setHealth(id, state) {
 }
 
 const HIST_MAX = 36;
-const HIST_KEY = "fakevps-telem-v2";
+const HIST_KEY = "fakevps-telem-v3";
 const GAUGE_C = 2 * Math.PI * 46;
 
 function loadHist() {

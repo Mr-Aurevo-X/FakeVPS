@@ -133,7 +133,7 @@ PY
 
 collect_metrics_json() {
   local be cg sidecar="{}" prev="$STATE_DIR/metrics.prev"
-  local mem_cur=0 mem_max=0 usage=0 pids=0
+  local mem_cur=0 mem_max=0 mem_cache=0 usage=0 pids=0
   be="$(active_backend 2>/dev/null || echo "$BACKEND")"
   refresh_disk_cache_bg
   if [[ "$be" == "fast" ]] && command -v docker >/dev/null 2>&1 && fast_running; then
@@ -141,6 +141,7 @@ collect_metrics_json() {
     if [[ -n "$cg" ]]; then
       mem_cur="$(read_first_u64 "$cg/memory.current")"
       mem_max="$(read_first_u64 "$cg/memory.max")"
+      mem_cache="$(read_first_u64 "$cg/memory.stat" inactive_file)"
       usage="$(read_first_u64 "$cg/cpu.stat" usage_usec)"
       pids="$(read_first_u64 "$cg/pids.current")"
     fi
@@ -152,6 +153,7 @@ collect_metrics_json() {
 {"ram_mb": ${RAM_MB}, "cpus": ${CPUS}, "disk_gb": ${DISK_GB},
  "now": $(date +%s.%N),
  "memory_current": ${mem_cur:-0}, "memory_max": ${mem_max:-0},
+ "memory_inactive_file": ${mem_cache:-0},
  "usage_usec": ${usage:-0}, "pids": ${pids:-0},
  "disk_used_gb": $(read_disk_used_gb),
  "disk_pending": ${pending},
