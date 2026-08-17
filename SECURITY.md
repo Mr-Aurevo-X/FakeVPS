@@ -20,7 +20,7 @@ FakeVPS is a **localhost rehearsal** tool. It is not a hosted service.
 
 Cockpit, SSH, and optional bot panel binds are **127.0.0.1 only**. Nothing is intended to listen on `0.0.0.0`. Treat a bind on all interfaces as a bug. `UI_HOST` cannot move the cockpit off loopback.
 
-The cockpit API has **no login**. Anyone who can open `http://127.0.0.1:8787` on this machine can start/stop the node and attach a folder. Requests whose `Host` header is not `127.0.0.1` / `localhost` are refused (DNS-rebinding guard). State-changing POSTs also require `Origin` (or `Referer`) to be this cockpit URL, so a random website cannot drive `/api/up` / `/api/down`. Do not expose the port, and do not run FakeVPS on a shared login. Use `./fakevps` in a terminal if you are not the cockpit page.
+The cockpit uses a **session token** (Jupyter-style): the server writes a random token to `state/ui.token` (mode 600) and `./fakevps ui` appends it to the URL it opens. State-changing POSTs, folder browsing, and bot logs require that token, so another local user — or a page opened without it — cannot drive `/api/up` / `/api/down` or list your home folder. Requests whose `Host` header is not `127.0.0.1` / `localhost` are refused (DNS-rebinding guard), and POSTs also require `Origin` (or `Referer`) to be this cockpit URL. Do not expose the port, and do not run FakeVPS on a shared login. Use `./fakevps` in a terminal if you are not the cockpit page.
 
 ### `--fast` is nearly host-root
 
@@ -65,7 +65,7 @@ This GitHub repository is **private** for now.
 
 Cockpit, SSH et panneau bot optionnel écoutent **uniquement 127.0.0.1**. Rien n’est censé écouter sur `0.0.0.0`. Un bind toutes interfaces est un bug. `UI_HOST` ne peut pas sortir le cockpit de la boucle locale.
 
-L’API du cockpit **n’a pas de login**. Quiconque ouvre `http://127.0.0.1:8787` sur cette machine peut démarrer/arrêter le nœud et attacher un dossier. Une requête dont le `Host` n’est pas `127.0.0.1` / `localhost` est refusée. Les POST qui changent l’état exigent aussi `Origin` (ou `Referer`) égal à l’URL du cockpit, pour qu’un site web ne pilote pas `/api/up` / `/api/down`. N’expose pas le port. Ne lance pas FakeVPS sur une session partagée. Hors page cockpit, utilise `./fakevps` dans un terminal.
+Le cockpit utilise un **jeton de session** (façon Jupyter) : le serveur écrit un jeton aléatoire dans `state/ui.token` (mode 600) et `./fakevps ui` l’ajoute à l’URL qu’il ouvre. Les POST qui changent l’état, le parcours de dossiers et les logs du bot exigent ce jeton — un autre utilisateur local, ou une page ouverte sans lui, ne peut pas piloter `/api/up` / `/api/down` ni lister ton home. Une requête dont le `Host` n’est pas `127.0.0.1` / `localhost` est refusée, et les POST exigent aussi `Origin` (ou `Referer`) égal à l’URL du cockpit. N’expose pas le port. Ne lance pas FakeVPS sur une session partagée. Hors page cockpit, utilise `./fakevps` dans un terminal.
 
 ### `--fast` est presque root hôte
 

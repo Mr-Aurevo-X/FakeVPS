@@ -5,6 +5,15 @@ ui_pidfile() {
   printf '%s\n' "$STATE_DIR/ui.pid"
 }
 
+# Cockpit URL with the session token appended (for opening a browser).
+ui_url() {
+  local url="http://127.0.0.1:${UI_PORT}"
+  if [[ -s "$STATE_DIR/ui.token" ]]; then
+    url="${url}/?token=$(tr -d '[:space:]' <"$STATE_DIR/ui.token")"
+  fi
+  printf '%s\n' "$url"
+}
+
 ui_port_listening() {
   host_bind_ok "$UI_PORT"
 }

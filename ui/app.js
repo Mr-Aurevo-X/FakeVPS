@@ -2,6 +2,260 @@
 
 const $ = (id) => document.getElementById(id);
 
+/* --- session token — ./fakevps ui appends it to the URL, we keep it locally --- */
+(() => {
+  const params = new URLSearchParams(window.location.search);
+  const tok = params.get("token");
+  if (tok) {
+    try { localStorage.setItem("fakevps-token", tok); } catch { /* ignore */ }
+    window.history.replaceState(null, "", window.location.pathname);
+  }
+})();
+
+function authHeaders() {
+  try {
+    const tok = localStorage.getItem("fakevps-token");
+    return tok ? { "X-FakeVPS-Token": tok } : {};
+  } catch {
+    return {};
+  }
+}
+
+/* --- i18n --- */
+const I18N = {
+  fr: {
+    "eyebrow": "Répétition locale",
+    "tag": "Nœud Ubuntu · 6 Go · 4 vCPU",
+    "tile.power": "Alimentation",
+    "uptime.label": "Temps de marche",
+    "btn.up": "Démarrer",
+    "btn.down": "Arrêter",
+    "btn.down.wipe": "Arrêter (efface tout)",
+    "down.title.wipe": "EPHEMERAL=true — l’extinction efface disque du nœud, images et journaux",
+    "confirm.wipe": "Mode éphémère : l’extinction efface tout ce que le nœud a stocké (disque, images Docker, journaux). Continuer ?",
+    "tile.node": "Nœud",
+    "label.disk": "Disque",
+    "label.disk2": "Disque",
+    "label.disk3": "Disque",
+    "label.engine": "Moteur",
+    "tile.telem": "Télémétrie",
+    "telem.note": "Nœud ubuntu@fakevps seulement — pas le PC hôte",
+    "t.ram": "RAM utilisée",
+    "t.cpu": "Charge CPU",
+    "t.app": "App",
+    "t.docker": "Images Docker",
+    "t.ct": "Conteneurs",
+    "t.pids": "Processus",
+    "t.rx": "Réseau in",
+    "t.tx": "Réseau out",
+    "t.n": "Échantillons",
+    "btn.copy": "Copier",
+    "copied": "Copié",
+    "btn.term": "Ouvrir un terminal",
+    "opened": "Ouvert",
+    "bot.hint": "Mets le jeton dans secrets/discord.env puis attache un dossier, par ex. ~/Discord Bot/MyBot",
+    "bot.attached": "Attaché",
+    "bot.token": "Jeton",
+    "btn.browse": "Parcourir",
+    "btn.attach": "Attacher",
+    "btn.sync": "Synchroniser",
+    "btn.restart": "Relancer",
+    "btn.botlogs": "Logs du bot",
+    "panel.msg": "Pas d’UI — aucun port configuré",
+    "panel.open": "Ouvrir le panneau",
+    "tile.health": "Santé",
+    "tile.log": "Journal",
+    "browse.title": "Choisir le dossier du bot",
+    "browse.choose": "Attacher ce dossier",
+    "browse.empty": "aucun sous-dossier",
+    "btn.close": "Fermer",
+    "botlogs.title": "Logs du bot",
+    "botlogs.refresh": "Actualiser",
+    "botlogs.empty": "(aucune sortie — le bot n’a rien écrit)",
+    "foot.line": "localhost only · aucune collecte",
+    "state.ready": "prêt",
+    "state.boot": "démarrage",
+    "pill.online": "en ligne",
+    "pill.boot": "démarrage",
+    "pill.off": "hors ligne",
+    "act.start": "démarrage…",
+    "act.stop": "arrêt…",
+    "act.attach": "attache du bot…",
+    "act.attached": "attaché",
+    "act.already": "déjà en ligne",
+    "act.sync": "synchronisation",
+    "act.restart": "relance",
+    "token.present": "présent",
+    "token.absent": "absent",
+    "measuring": "mesure…",
+    "unit.gb": "Go",
+    "rate.b": "o/s",
+    "rate.kb": "Ko/s",
+    "rate.mb": "Mo/s",
+    "diag.allgood": "Tout est bon",
+    "diag.lead.ok": "Aucun blocage détecté sur le nœud ou le bot.",
+    "diag.lead.bad": "Voici ce qui cloche, et la commande pour le débloquer.",
+    "diag.api.t": "Le cockpit n’arrive pas à lire le nœud",
+    "diag.offline.t": "Le VPS est éteint",
+    "diag.offline.d": "Rien n’écoute en SSH. Démarrer ici, ou en terminal.",
+    "diag.booting.t": "Le nœud démarre",
+    "diag.booting.d": "Le conteneur/VM est là, SSH pas encore prêt. Attends 30–60 s.",
+    "diag.docker.t": "Docker n’est pas prêt dans le guest",
+    "diag.docker.d": "SSH répond, mais le moteur Docker du VPS n’est pas là. Le premier provision a peut‑être planté (swap, réseau).",
+    "diag.path-space.t": "Le chemin du bot a un espace",
+    "diag.path-space.d": "Bash coupe BOT_DIR au premier espace (ex. Discord Bot). N’attache pas ce chemin tel quel.",
+    "diag.token.t": "DISCORD_TOKEN manquant",
+    "diag.token.d": "Le code est copié, le bot ne démarre pas sans jeton.",
+    "diag.compose-env.t": "Il manque une variable Compose",
+    "diag.compose-env.d": "docker compose a arrêté le déploiement (souvent LAVALINK_PASSWORD, POSTGRES_PASSWORD, NEXTAUTH_SECRET).",
+    "diag.database-url.t": "DATABASE_URL manquant",
+    "diag.database-url.d": "Prisma ne peut pas migrer sans DATABASE_URL. Le .env injecté ne contient pas cette clé.",
+    "diag.ts-build.t": "Build TypeScript incomplet",
+    "diag.ts-build.d": "Les packages du monorepo ne sont pas compilés (Cannot find module @scope/…). Le service n’a pas été installé.",
+    "diag.dind.t": "Docker imbriqué refuse d’extraire une image",
+    "diag.dind.d": "Overlay-sur-overlay (ou btrfs). Le nœud fast doit avoir son graph Docker sur l’hôte.",
+    "diag.migrate.t": "La migrate Compose a échoué",
+    "diag.migrate.d": "L’image prod n’a parfois pas Prisma. FakeVPS bascule alors sur l’infra + systemd. Si le bot est encore rouge, regarde les logs.",
+    "diag.no-bot.t": "Aucun bot n’est attaché",
+    "diag.no-bot.d": "Le VPS est vide. Attache un dossier. S’il y a un espace dans le chemin, passe par un lien.",
+    "diag.bot-down.t": "Le bot est attaché mais pas lancé",
+    "diag.bot-down.d": "Le dossier est connu, aucun process bot/worker. Jeton, Compose ou systemd.",
+    "diag.inside-guest.t": "Tu es dans le VPS, pas sur l’hôte",
+    "diag.inside-guest.d": "Le prompt ubuntu@fakevps veut dire guest. ./fakevps attach se lance depuis le dossier FakeVPS sur l’hôte.",
+    "diag.ok.t": "Rien à signaler",
+    "diag.ok.d": "Nœud en ligne. Les feux Santé sont verts, ou le nœud attend juste un bot.",
+  },
+  en: {
+    "eyebrow": "Local rehearsal",
+    "tag": "Ubuntu node · 6 GB · 4 vCPU",
+    "tile.power": "Power",
+    "uptime.label": "Uptime",
+    "btn.up": "Start",
+    "btn.down": "Stop",
+    "btn.down.wipe": "Stop (erase everything)",
+    "down.title.wipe": "EPHEMERAL=true — shutdown erases the node disk, images and logs",
+    "confirm.wipe": "Ephemeral mode: shutting down erases everything the node stored (disk, Docker images, logs). Continue?",
+    "tile.node": "Node",
+    "label.disk": "Disk",
+    "label.disk2": "Disk",
+    "label.disk3": "Disk",
+    "label.engine": "Engine",
+    "tile.telem": "Telemetry",
+    "telem.note": "ubuntu@fakevps node only — not the host PC",
+    "t.ram": "RAM used",
+    "t.cpu": "CPU load",
+    "t.app": "App",
+    "t.docker": "Docker images",
+    "t.ct": "Containers",
+    "t.pids": "Processes",
+    "t.rx": "Network in",
+    "t.tx": "Network out",
+    "t.n": "Samples",
+    "btn.copy": "Copy",
+    "copied": "Copied",
+    "btn.term": "Open a terminal",
+    "opened": "Opened",
+    "bot.hint": "Put the token in secrets/discord.env then attach a folder, e.g. ~/Discord Bot/MyBot",
+    "bot.attached": "Attached",
+    "bot.token": "Token",
+    "btn.browse": "Browse",
+    "btn.attach": "Attach",
+    "btn.sync": "Sync",
+    "btn.restart": "Restart",
+    "btn.botlogs": "Bot logs",
+    "panel.msg": "No web UI — no port configured",
+    "panel.open": "Open the panel",
+    "tile.health": "Health",
+    "tile.log": "Journal",
+    "browse.title": "Pick the bot folder",
+    "browse.choose": "Attach this folder",
+    "browse.empty": "no subfolders",
+    "btn.close": "Close",
+    "botlogs.title": "Bot logs",
+    "botlogs.refresh": "Refresh",
+    "botlogs.empty": "(no output — the bot wrote nothing)",
+    "foot.line": "localhost only · nothing collected",
+    "state.ready": "ready",
+    "state.boot": "starting",
+    "pill.online": "online",
+    "pill.boot": "starting",
+    "pill.off": "offline",
+    "act.start": "starting…",
+    "act.stop": "stopping…",
+    "act.attach": "attaching the bot…",
+    "act.attached": "attached",
+    "act.already": "already online",
+    "act.sync": "sync",
+    "act.restart": "restart",
+    "token.present": "present",
+    "token.absent": "missing",
+    "measuring": "measuring…",
+    "unit.gb": "GB",
+    "rate.b": "B/s",
+    "rate.kb": "KB/s",
+    "rate.mb": "MB/s",
+    "diag.allgood": "All good",
+    "diag.lead.ok": "No blocker detected on the node or the bot.",
+    "diag.lead.bad": "Here is what is wrong, and the command to unblock it.",
+    "diag.api.t": "The cockpit can’t read the node",
+    "diag.offline.t": "The VPS is off",
+    "diag.offline.d": "Nothing is listening on SSH. Start it here, or from a terminal.",
+    "diag.booting.t": "The node is booting",
+    "diag.booting.d": "The container/VM exists, SSH isn’t ready yet. Wait 30–60 s.",
+    "diag.docker.t": "Docker isn’t ready in the guest",
+    "diag.docker.d": "SSH answers, but the node’s Docker engine isn’t there. The first provision may have crashed (swap, network).",
+    "diag.path-space.t": "The bot path has a space",
+    "diag.path-space.d": "Bash cuts BOT_DIR at the first space (e.g. Discord Bot). Don’t attach that path as-is.",
+    "diag.token.t": "DISCORD_TOKEN missing",
+    "diag.token.d": "The code is copied, but the bot won’t start without a token.",
+    "diag.compose-env.t": "A Compose variable is missing",
+    "diag.compose-env.d": "docker compose stopped the deploy (often LAVALINK_PASSWORD, POSTGRES_PASSWORD, NEXTAUTH_SECRET).",
+    "diag.database-url.t": "DATABASE_URL missing",
+    "diag.database-url.d": "Prisma can’t migrate without DATABASE_URL. The injected .env doesn’t have that key.",
+    "diag.ts-build.t": "Incomplete TypeScript build",
+    "diag.ts-build.d": "The monorepo packages aren’t compiled (Cannot find module @scope/…). The service was not installed.",
+    "diag.dind.t": "Nested Docker refuses to extract an image",
+    "diag.dind.d": "Overlay-on-overlay (or btrfs). The fast node must keep its Docker graph on the host.",
+    "diag.migrate.t": "The Compose migrate failed",
+    "diag.migrate.d": "The prod image sometimes lacks Prisma. FakeVPS then falls back to infra + systemd. If the bot is still red, check the logs.",
+    "diag.no-bot.t": "No bot is attached",
+    "diag.no-bot.d": "The VPS is empty. Attach a folder. If the path has a space, use a symlink.",
+    "diag.bot-down.t": "The bot is attached but not running",
+    "diag.bot-down.d": "The folder is known, but no bot/worker process. Token, Compose or systemd.",
+    "diag.inside-guest.t": "You are inside the VPS, not on the host",
+    "diag.inside-guest.d": "The ubuntu@fakevps prompt means guest. ./fakevps attach runs from the FakeVPS folder on the host.",
+    "diag.ok.t": "Nothing to report",
+    "diag.ok.d": "Node online. The health lights are green, or the node is just waiting for a bot.",
+  },
+};
+
+let LANG = (() => {
+  try {
+    const saved = localStorage.getItem("fakevps-lang");
+    if (saved === "fr" || saved === "en") return saved;
+  } catch { /* ignore */ }
+  return (navigator.language || "en").toLowerCase().startsWith("fr") ? "fr" : "en";
+})();
+
+function tr(key) {
+  return (I18N[LANG] && I18N[LANG][key]) ?? I18N.fr[key] ?? key;
+}
+
+function diagCountLabel(n) {
+  if (LANG === "fr") return `${n} point${n > 1 ? "s" : ""} à régler`;
+  return `${n} issue${n > 1 ? "s" : ""} to fix`;
+}
+
+function applyI18n() {
+  document.documentElement.lang = LANG;
+  document.querySelectorAll("[data-i18n]").forEach((el) => {
+    const v = tr(el.dataset.i18n);
+    if (v && v !== el.dataset.i18n) el.textContent = v;
+  });
+  const toggle = $("lang-toggle");
+  if (toggle) toggle.textContent = LANG === "fr" ? "EN" : "FR";
+}
+
 function setHealth(id, state) {
   const el = $(id);
   if (!el) return;
@@ -10,7 +264,7 @@ function setHealth(id, state) {
   if (state === "warn") el.classList.add("warn");
   const label = $(`${id}-state`);
   if (label) {
-    label.textContent = state === "ok" ? "prêt" : state === "warn" ? "démarrage" : "off";
+    label.textContent = state === "ok" ? tr("state.ready") : state === "warn" ? tr("state.boot") : "off";
   }
 }
 
@@ -45,7 +299,7 @@ function renderServices(services) {
     const st = document.createElement("span");
     st.className = "health-state";
     st.id = `h-svc-${slug(name)}-state`;
-    st.textContent = svc.state || (ledState === "ok" ? "prêt" : "off");
+    st.textContent = svc.state || (ledState === "ok" ? tr("state.ready") : "off");
     li.id = `h-svc-${slug(name)}`;
     li.append(led, label, st);
     list.append(li);
@@ -149,9 +403,9 @@ function setGauge(id, pct) {
 
 function fmtRate(bps) {
   const n = Number(bps) || 0;
-  if (n < 1024) return `${n.toFixed(0)} o/s`;
-  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} Ko/s`;
-  return `${(n / (1024 * 1024)).toFixed(1)} Mo/s`;
+  if (n < 1024) return `${n.toFixed(0)} ${tr("rate.b")}`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} ${tr("rate.kb")}`;
+  return `${(n / (1024 * 1024)).toFixed(1)} ${tr("rate.mb")}`;
 }
 
 function updateTelemetry(s, online) {
@@ -165,28 +419,28 @@ function updateTelemetry(s, online) {
   const ramPct = ramTotal ? (100 * ramUsed) / ramTotal : 0;
   const diskPct = diskTotal ? (100 * diskUsed) / diskTotal : 0;
   $("t-ram").textContent = online && ramTotal
-    ? `${(ramUsed / 1024).toFixed(1)} / ${(ramTotal / 1024).toFixed(1)} Go`
+    ? `${(ramUsed / 1024).toFixed(1)} / ${(ramTotal / 1024).toFixed(1)} ${tr("unit.gb")}`
     : "—";
   $("t-cpu").textContent = online ? `${cpuPct.toFixed(0)}% · load ${s.load1 ?? "—"}` : "—";
   $("t-disk-app").textContent = !online
     ? "—"
     : s.disk_pending
-      ? "mesure…"
-      : `${diskApp.toFixed(1)} Go`;
+      ? tr("measuring")
+      : `${diskApp.toFixed(1)} ${tr("unit.gb")}`;
   $("t-disk-docker").textContent = !online
     ? "—"
     : s.disk_pending
-      ? "mesure…"
-      : `${diskDocker.toFixed(1)} / ${diskTotal || 40} Go`;
+      ? tr("measuring")
+      : `${diskDocker.toFixed(1)} / ${diskTotal || 40} ${tr("unit.gb")}`;
   $("t-ct").textContent = online ? String(s.containers ?? "—") : "—";
   $("t-pids").textContent = online && s.pids ? String(s.pids) : "—";
   $("t-rx").textContent = online ? fmtRate(s.net_rx_bps) : "—";
   $("t-tx").textContent = online ? fmtRate(s.net_tx_bps) : "—";
   if (online && ramTotal) {
-    $("m-ram").textContent = `${(ramUsed / 1024).toFixed(1)} / ${Math.round(ramTotal / 1024)} Go`;
+    $("m-ram").textContent = `${(ramUsed / 1024).toFixed(1)} / ${Math.round(ramTotal / 1024)} ${tr("unit.gb")}`;
   }
   if (online && diskTotal && !s.disk_pending) {
-    $("m-disk").textContent = `${diskUsed.toFixed(1)} / ${Math.round(diskTotal)} Go`;
+    $("m-disk").textContent = `${diskUsed.toFixed(1)} / ${Math.round(diskTotal)} ${tr("unit.gb")}`;
   }
   if (online) {
     $("m-cpu").textContent = `${cpuPct.toFixed(0)}% · ${s.cpus || 4}`;
@@ -229,7 +483,8 @@ function fmtUptime(sec) {
 }
 
 async function api(path, opts) {
-  const res = await fetch(path, opts);
+  const o = opts || {};
+  const res = await fetch(path, { ...o, headers: { ...authHeaders(), ...(o.headers || {}) } });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || data.log || res.statusText);
   return data;
@@ -301,7 +556,7 @@ function diagnose(s) {
     issues.push({
       id: "api",
       level: "off",
-      title: "Le cockpit n’arrive pas à lire le nœud",
+      title: tr("diag.api.t"),
       detail: s.diag_error,
       fix: "./fakevps ui",
     });
@@ -310,8 +565,8 @@ function diagnose(s) {
     issues.push({
       id: "offline",
       level: "off",
-      title: "Le VPS est éteint",
-      detail: "Rien n’écoute en SSH. Démarrer ici, ou en terminal.",
+      title: tr("diag.offline.t"),
+      detail: tr("diag.offline.d"),
       fix: "./fakevps up --fast",
     });
   }
@@ -319,8 +574,8 @@ function diagnose(s) {
     issues.push({
       id: "booting",
       level: "warn",
-      title: "Le nœud démarre",
-      detail: "Le conteneur/VM est là, SSH pas encore prêt. Attends 30–60 s.",
+      title: tr("diag.booting.t"),
+      detail: tr("diag.booting.d"),
       fix: "./fakevps status\n./fakevps logs",
     });
   }
@@ -328,8 +583,8 @@ function diagnose(s) {
     issues.push({
       id: "docker",
       level: "warn",
-      title: "Docker n’est pas prêt dans le guest",
-      detail: "SSH répond, mais le moteur Docker du VPS n’est pas là. Le premier provision a peut‑être planté (swap, réseau).",
+      title: tr("diag.docker.t"),
+      detail: tr("diag.docker.d"),
       fix: "./fakevps ssh -- 'command -v docker || echo missing'\nPuis relance ./fakevps up --fast",
     });
   }
@@ -340,8 +595,8 @@ function diagnose(s) {
     issues.push({
       id: "path-space",
       level: "off",
-      title: "Le chemin du bot a un espace",
-      detail: "Bash coupe BOT_DIR au premier espace (ex. Discord Bot). N’attache pas ce chemin tel quel.",
+      title: tr("diag.path-space.t"),
+      detail: tr("diag.path-space.d"),
       fix: "ln -sfn \"~/Discord Bot/MyBot\" ~/mon-bot\n./fakevps attach ~/mon-bot",
     });
   }
@@ -349,8 +604,8 @@ function diagnose(s) {
     issues.push({
       id: "token",
       level: "off",
-      title: "DISCORD_TOKEN manquant",
-      detail: "Le code est copié, le bot ne démarre pas sans jeton.",
+      title: tr("diag.token.t"),
+      detail: tr("diag.token.d"),
       fix: "Édite secrets/discord.env et mets DISCORD_TOKEN=…\n./fakevps ssh -- rm -f /home/ubuntu/app/.env\n./fakevps attach \"~/Discord Bot/MyBot\"",
     });
   }
@@ -358,8 +613,8 @@ function diagnose(s) {
     issues.push({
       id: "compose-env",
       level: "off",
-      title: "Il manque une variable Compose",
-      detail: "docker compose a arrêté le déploiement (souvent LAVALINK_PASSWORD, POSTGRES_PASSWORD, NEXTAUTH_SECRET).",
+      title: tr("diag.compose-env.t"),
+      detail: tr("diag.compose-env.d"),
       fix: "Recopie le .env complet du bot dans secrets/discord.env\n./fakevps ssh -- rm -f /home/ubuntu/app/.env\n./fakevps attach \"~/Discord Bot/MyBot\"",
     });
   }
@@ -367,8 +622,8 @@ function diagnose(s) {
     issues.push({
       id: "database-url",
       level: "off",
-      title: "DATABASE_URL manquant",
-      detail: "Prisma ne peut pas migrer sans DATABASE_URL. Le .env injecté ne contient pas cette clé.",
+      title: tr("diag.database-url.t"),
+      detail: tr("diag.database-url.d"),
       fix: "Ajoute DATABASE_URL=… dans secrets/discord.env (ou dans le .env du bot)\n./fakevps attach \"~/Discord Bot/MyBot\"",
     });
   }
@@ -376,8 +631,8 @@ function diagnose(s) {
     issues.push({
       id: "ts-build",
       level: "off",
-      title: "Build TypeScript incomplet",
-      detail: "Les packages du monorepo ne sont pas compilés (Cannot find module @scope/…). Le service n’a pas été installé.",
+      title: tr("diag.ts-build.t"),
+      detail: tr("diag.ts-build.d"),
       fix: "Vérifie que le package.json racine a un script build/build:ci\n./fakevps attach \"~/Discord Bot/MyBot\"",
     });
   }
@@ -385,8 +640,8 @@ function diagnose(s) {
     issues.push({
       id: "dind",
       level: "off",
-      title: "Docker imbriqué refuse d’extraire une image",
-      detail: "Overlay-sur-overlay (ou btrfs). Le nœud fast doit avoir son graph Docker sur l’hôte.",
+      title: tr("diag.dind.t"),
+      detail: tr("diag.dind.d"),
       fix: "./fakevps down\n./fakevps up --fast\n./fakevps attach \"~/Discord Bot/MyBot\"",
     });
   }
@@ -394,8 +649,8 @@ function diagnose(s) {
     issues.push({
       id: "migrate",
       level: "warn",
-      title: "La migrate Compose a échoué",
-      detail: "L’image prod n’a parfois pas Prisma. FakeVPS bascule alors sur l’infra + systemd. Si le bot est encore rouge, regarde les logs.",
+      title: tr("diag.migrate.t"),
+      detail: tr("diag.migrate.d"),
       fix: "./fakevps ssh -- 'journalctl -u discord-bot -n 40 --no-pager'",
     });
   }
@@ -403,8 +658,8 @@ function diagnose(s) {
     issues.push({
       id: "no-bot",
       level: "warn",
-      title: "Aucun bot n’est attaché",
-      detail: "Le VPS est vide. Attache un dossier. S’il y a un espace dans le chemin, passe par un lien.",
+      title: tr("diag.no-bot.t"),
+      detail: tr("diag.no-bot.d"),
       fix: "ln -sfn \"~/Discord Bot/MyBot\" ~/mon-bot\n./fakevps attach ~/mon-bot",
     });
   }
@@ -412,8 +667,8 @@ function diagnose(s) {
     issues.push({
       id: "bot-down",
       level: "off",
-      title: "Le bot est attaché mais pas lancé",
-      detail: "Le dossier est connu, aucun process bot/worker. Jeton, Compose ou systemd.",
+      title: tr("diag.bot-down.t"),
+      detail: tr("diag.bot-down.d"),
       fix: "./fakevps attach \"" + botDir + "\"\n./fakevps ssh -- 'systemctl status discord-bot --no-pager; docker ps'",
     });
   }
@@ -421,8 +676,8 @@ function diagnose(s) {
     issues.push({
       id: "inside-guest",
       level: "warn",
-      title: "Tu es dans le VPS, pas sur l’hôte",
-      detail: "Le prompt ubuntu@fakevps veut dire guest. ./fakevps attach se lance depuis le dossier FakeVPS sur l’hôte.",
+      title: tr("diag.inside-guest.t"),
+      detail: tr("diag.inside-guest.d"),
       fix: "exit\n./fakevps attach \"~/Discord Bot/MyBot\"",
     });
   }
@@ -430,8 +685,8 @@ function diagnose(s) {
     issues.push({
       id: "ok",
       level: "ok",
-      title: "Rien à signaler",
-      detail: "Nœud en ligne. Les feux Santé sont verts, ou le nœud attend juste un bot.",
+      title: tr("diag.ok.t"),
+      detail: tr("diag.ok.d"),
       fix: "Cockpit http://127.0.0.1:8787\nSSH : ./fakevps ssh",
     });
   }
@@ -446,12 +701,8 @@ function renderDiag(issues) {
       ? "warn"
       : "ok";
   $("diag-kicker").textContent = "Diagnostic";
-  $("diag-title").textContent = bad.length
-    ? `${bad.length} point${bad.length > 1 ? "s" : ""} à régler`
-    : "Tout est bon";
-  $("diag-lead").textContent = worst === "ok"
-    ? "Aucun blocage détecté sur le nœud ou le bot."
-    : "Voici ce qui cloche, et la commande pour le débloquer.";
+  $("diag-title").textContent = bad.length ? diagCountLabel(bad.length) : tr("diag.allgood");
+  $("diag-lead").textContent = worst === "ok" ? tr("diag.lead.ok") : tr("diag.lead.bad");
   const list = $("diag-list");
   list.replaceChildren();
   for (const issue of issues) {
@@ -466,11 +717,11 @@ function renderDiag(issues) {
     const copyBtn = document.createElement("button");
     copyBtn.type = "button";
     copyBtn.className = "btn ghost diag-copy";
-    copyBtn.textContent = "Copier";
+    copyBtn.textContent = tr("btn.copy");
     copyBtn.addEventListener("click", async () => {
       await navigator.clipboard.writeText(issue.fix);
-      copyBtn.textContent = "Copié";
-      setTimeout(() => { copyBtn.textContent = "Copier"; }, 1200);
+      copyBtn.textContent = tr("copied");
+      setTimeout(() => { copyBtn.textContent = tr("btn.copy"); }, 1200);
     });
     li.append(h, p, pre, copyBtn);
     list.append(li);
@@ -519,16 +770,16 @@ function render(s) {
   $("pill").classList.toggle("booting", booting);
   $("pill").classList.toggle("offline", !online && !booting);
   $("pill-label").textContent = starting
-    ? "démarrage"
+    ? tr("pill.boot")
     : online
-      ? "en ligne"
+      ? tr("pill.online")
       : s.running
-        ? "démarrage"
-        : "hors ligne";
+        ? tr("pill.boot")
+        : tr("pill.off");
   $("uptime").textContent = fmtUptime(s.uptime_sec);
-  $("m-ram").textContent = `${Math.round((s.ram_mb || 0) / 1024)} Go`;
+  $("m-ram").textContent = `${Math.round((s.ram_mb || 0) / 1024)} ${tr("unit.gb")}`;
   $("m-cpu").textContent = String(s.cpus || 4);
-  $("m-disk").textContent = `${s.disk_gb || 40} Go`;
+  $("m-disk").textContent = `${s.disk_gb || 40} ${tr("unit.gb")}`;
   $("m-be").textContent = s.backend || "—";
   updateTelemetry(s, online && !starting);
   $("ssh-cmd").textContent = `ssh -p ${s.ssh_port || 2222} ubuntu@127.0.0.1`;
@@ -556,22 +807,21 @@ function render(s) {
   }
   $("bot-runtime").textContent = s.runtime && s.runtime !== "none" ? s.runtime : "—";
   if (s.token_present === true) {
-    $("bot-token").textContent = "présent";
+    $("bot-token").textContent = tr("token.present");
   } else if (s.ssh) {
-    $("bot-token").textContent = "absent";
+    $("bot-token").textContent = tr("token.absent");
   } else {
     $("bot-token").textContent = "—";
   }
   $("btn-sync").disabled = !online || !(s.bot_attached || s.bot_dir_display);
   $("btn-restart").disabled = !online;
-  $("btn-down").textContent = s.ephemeral ? "Arrêter (efface tout)" : "Arrêter";
-  $("btn-down").title = s.ephemeral
-    ? "EPHEMERAL=true — l’extinction efface disque du nœud, images et journaux"
-    : "";
+  $("btn-down").textContent = s.ephemeral ? tr("btn.down.wipe") : tr("btn.down");
+  $("btn-down").title = s.ephemeral ? tr("down.title.wipe") : "";
+  $("btn-botlogs").disabled = !online;
   if (s.activity) {
     renderActivity(s.activity);
   } else if (starting) {
-    renderActivity("démarrage…");
+    renderActivity(tr("act.start"));
   }
   syncDialog(s, Boolean(s.force_diag));
 }
@@ -604,10 +854,10 @@ async function refreshMetrics() {
 async function power(path) {
   $("btn-up").disabled = true;
   $("btn-down").disabled = true;
-  renderActivity(path === "/api/up" ? "démarrage…" : "arrêt…");
+  renderActivity(path === "/api/up" ? tr("act.start") : tr("act.stop"));
   try {
     const out = await api(path, { method: "POST" });
-    renderActivity(out.log || (out.already_online ? "déjà en ligne" : "ok"));
+    renderActivity(out.log || (out.already_online ? tr("act.already") : "ok"));
   } catch (err) {
     renderActivity(String(err.message || err));
     syncDialog({ activity: String(err.message || err), force_diag: true }, true);
@@ -620,19 +870,33 @@ async function power(path) {
 
 async function attachBot() {
   const dir = $("bot-path").value.trim();
-  renderActivity("attache du bot…");
+  renderActivity(tr("act.attach"));
   $("btn-attach").disabled = true;
   try {
-    const out = await api("/api/attach", {
+    // Streamed deploy: the journal fills line by line while pnpm/docker work.
+    const res = await fetch("/api/attach?stream=1", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { ...authHeaders(), "Content-Type": "application/json" },
       body: JSON.stringify({ dir }),
     });
-    renderActivity(out.log || "attaché");
-    const failed = /missing|error|failed|aucun fichier|required variable|whiteout/i.test(out.log || "");
+    if (!res.ok || !res.body) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || data.log || res.statusText);
+    }
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let acc = "";
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      acc += decoder.decode(value, { stream: true });
+      renderActivity(acc.split("\n").slice(-120).join("\n"));
+    }
+    renderActivity(acc || tr("act.attached"));
+    const failed = /missing|error|failed|aucun fichier|required variable|whiteout|\[exit [1-9]/i.test(acc);
     if (failed) {
-      const s = await api("/api/status").catch(() => ({ activity: out.log }));
-      s.activity = out.log || s.activity;
+      const s = await api("/api/status").catch(() => ({ activity: acc }));
+      s.activity = acc || s.activity;
       s.force_diag = true;
       applyStatus(s);
     }
@@ -642,6 +906,18 @@ async function attachBot() {
   } finally {
     $("btn-attach").disabled = false;
     refreshStatus();
+  }
+}
+
+async function showBotLogs() {
+  const dlg = $("botlogs");
+  if (!dlg.open) dlg.showModal();
+  $("botlogs-pre").textContent = "…";
+  try {
+    const out = await api("/api/bot-logs");
+    $("botlogs-pre").textContent = redactSecrets(out.log || "").trim() || tr("botlogs.empty");
+  } catch (err) {
+    $("botlogs-pre").textContent = String(err.message || err);
   }
 }
 
@@ -697,7 +973,7 @@ function renderBrowse(data) {
   if (!(data.dirs || []).length) {
     const li = document.createElement("li");
     li.className = "browse-empty muted";
-    li.textContent = "aucun sous-dossier";
+    li.textContent = tr("browse.empty");
     list.append(li);
   }
 }
@@ -739,35 +1015,40 @@ $("diag").addEventListener("close", () => {
 
 $("btn-up").addEventListener("click", () => power("/api/up"));
 $("btn-down").addEventListener("click", () => {
-  if (lastStatus.ephemeral) {
-    const ok = window.confirm(
-      "Mode éphémère : l’extinction efface tout ce que le nœud a stocké (disque, images Docker, journaux). Continuer ?"
-    );
-    if (!ok) return;
-  }
+  if (lastStatus.ephemeral && !window.confirm(tr("confirm.wipe"))) return;
   power("/api/down");
 });
 $("btn-attach").addEventListener("click", attachBot);
 $("bot-path").addEventListener("keydown", (ev) => {
   if (ev.key === "Enter") attachBot();
 });
-$("btn-sync").addEventListener("click", () => botAction("/api/sync", "synchronisation"));
-$("btn-restart").addEventListener("click", () => botAction("/api/restart-bot", "relance"));
+$("btn-sync").addEventListener("click", () => botAction("/api/sync", tr("act.sync")));
+$("btn-restart").addEventListener("click", () => botAction("/api/restart-bot", tr("act.restart")));
+$("btn-botlogs").addEventListener("click", showBotLogs);
+$("botlogs-refresh").addEventListener("click", showBotLogs);
+$("botlogs-close").addEventListener("click", () => $("botlogs").close());
 $("btn-copy").addEventListener("click", async () => {
   await navigator.clipboard.writeText($("ssh-cmd").textContent);
-  $("btn-copy").textContent = "Copié";
-  setTimeout(() => { $("btn-copy").textContent = "Copier"; }, 1200);
+  $("btn-copy").textContent = tr("copied");
+  setTimeout(() => { $("btn-copy").textContent = tr("btn.copy"); }, 1200);
 });
 $("btn-term").addEventListener("click", async () => {
   try {
     await api("/api/open-terminal", { method: "POST" });
-    $("btn-term").textContent = "Ouvert";
+    $("btn-term").textContent = tr("opened");
   } catch (err) {
     renderActivity(String(err.message || err));
   }
-  setTimeout(() => { $("btn-term").textContent = "Ouvrir un terminal"; }, 1200);
+  setTimeout(() => { $("btn-term").textContent = tr("btn.term"); }, 1200);
+});
+$("lang-toggle").addEventListener("click", () => {
+  LANG = LANG === "fr" ? "en" : "fr";
+  try { localStorage.setItem("fakevps-lang", LANG); } catch { /* ignore */ }
+  applyI18n();
+  if (Object.keys(lastStatus).length) render(lastStatus);
 });
 
+applyI18n();
 refreshStatus();
 setInterval(refreshMetrics, 4000);
 setInterval(refreshStatus, 12000);

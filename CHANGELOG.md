@@ -11,6 +11,10 @@ All notable changes to FakeVPS. Based on FakeVPS — https://github.com/Mr-Aurev
 - **Ephemeral mode** — `down --wipe` or `EPHEMERAL=true`: shutdown erases the guest disk, the fast Docker graph, logs and caches. `secrets/` and the host SSH key are kept.
 - Cockpit **Browse** dialog — pick the bot folder visually (home-restricted, `.env`/bot badges) instead of typing a path.
 - Cockpit asks for confirmation before an ephemeral shutdown.
+- Cockpit **session token** (Jupyter-style, `state/ui.token`): required for state-changing POSTs, folder browsing and bot logs.
+- Cockpit **live deploy stream** — `attach` output fills the journal line by line while pnpm/docker work.
+- Cockpit **Bot logs** dialog — last journalctl/docker lines from the guest, one click.
+- Cockpit is **bilingual** (FR/EN): language auto-detected from the browser, FR/EN toggle in the header, diagnostics included.
 
 ### Changed
 - Bot deploys are guarded: compose env preflight with the exact list of missing keys, Prisma migrate skipped without `DATABASE_URL`, monorepo build via root `build:ci`/`build`, and **no systemd unit is installed when the build fails** (attach reports the failure).

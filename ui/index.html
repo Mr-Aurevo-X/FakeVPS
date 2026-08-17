@@ -14,34 +14,37 @@
   <div class="rack-floor" aria-hidden="true"></div>
   <div class="scanlines" aria-hidden="true"></div>
   <header class="top">
-    <div class="brand">
+      <div class="brand">
       <span class="mark" aria-hidden="true">F</span>
       <div>
-        <p class="eyebrow">Répétition locale</p>
+        <p class="eyebrow" data-i18n="eyebrow">Répétition locale</p>
         <h1>FakeVPS</h1>
-        <p class="tag">Nœud Ubuntu · 6 Go · 4 vCPU</p>
+        <p class="tag" data-i18n="tag">Nœud Ubuntu · 6 Go · 4 vCPU</p>
       </div>
     </div>
-    <div class="pill offline" id="pill">
-      <span class="dot" id="dot"></span>
-      <span id="pill-label">hors ligne</span>
+    <div class="top-side">
+      <div class="pill offline" id="pill">
+        <span class="dot" id="dot"></span>
+        <span id="pill-label">hors ligne</span>
+      </div>
+      <button type="button" class="lang-btn" id="lang-toggle" title="Français / English">EN</button>
     </div>
   </header>
   <div class="rail" aria-hidden="true"></div>
 
   <main class="grid">
     <article class="tile tile-power">
-      <h2>Alimentation</h2>
-      <p class="uptime-label">Temps de marche</p>
+      <h2 data-i18n="tile.power">Alimentation</h2>
+      <p class="uptime-label" data-i18n="uptime.label">Temps de marche</p>
       <p class="uptime-val" id="uptime">—</p>
       <div class="actions">
-        <button type="button" id="btn-up" class="btn primary idle-glow">Démarrer</button>
+        <button type="button" id="btn-up" class="btn primary idle-glow" data-i18n="btn.up">Démarrer</button>
         <button type="button" id="btn-down" class="btn">Arrêter</button>
       </div>
     </article>
 
     <article class="tile tile-node">
-      <h2>Nœud</h2>
+      <h2 data-i18n="tile.node">Nœud</h2>
       <dl class="metrics">
         <div class="inst">
           <dt>RAM</dt>
@@ -54,20 +57,20 @@
           <span class="bar" aria-hidden="true"><i id="bar-cpu"></i></span>
         </div>
         <div class="inst">
-          <dt>Disque</dt>
+          <dt data-i18n="label.disk">Disque</dt>
           <dd id="m-disk">40 Go</dd>
           <span class="bar" aria-hidden="true"><i id="bar-disk"></i></span>
         </div>
         <div class="inst">
-          <dt>Moteur</dt>
+          <dt data-i18n="label.engine">Moteur</dt>
           <dd id="m-be">—</dd>
         </div>
       </dl>
     </article>
 
     <article class="tile tile-telem">
-      <h2>Télémétrie</h2>
-      <p class="muted telem-note">Nœud ubuntu@fakevps seulement — pas le PC hôte</p>
+      <h2 data-i18n="tile.telem">Télémétrie</h2>
+      <p class="muted telem-note" data-i18n="telem.note">Nœud ubuntu@fakevps seulement — pas le PC hôte</p>
       <div class="gauges" aria-hidden="true">
         <div class="gauge">
           <svg viewBox="0 0 120 120">
@@ -91,19 +94,19 @@
             <circle class="g-fill" id="g-disk" cx="60" cy="60" r="46"></circle>
           </svg>
           <strong id="g-disk-n">—</strong>
-          <span>Disque</span>
+          <span data-i18n="label.disk2">Disque</span>
         </div>
       </div>
       <dl class="telem-stats">
-        <div><dt>RAM utilisée</dt><dd id="t-ram">—</dd></div>
-        <div><dt>Charge CPU</dt><dd id="t-cpu">—</dd></div>
-        <div><dt>App</dt><dd id="t-disk-app">—</dd></div>
-        <div><dt>Images Docker</dt><dd id="t-disk-docker">—</dd></div>
-        <div><dt>Conteneurs</dt><dd id="t-ct">—</dd></div>
-        <div><dt>Processus</dt><dd id="t-pids">—</dd></div>
-        <div><dt>Réseau in</dt><dd id="t-rx">—</dd></div>
-        <div><dt>Réseau out</dt><dd id="t-tx">—</dd></div>
-        <div><dt>Échantillons</dt><dd id="t-n">—</dd></div>
+        <div><dt data-i18n="t.ram">RAM utilisée</dt><dd id="t-ram">—</dd></div>
+        <div><dt data-i18n="t.cpu">Charge CPU</dt><dd id="t-cpu">—</dd></div>
+        <div><dt data-i18n="t.app">App</dt><dd id="t-disk-app">—</dd></div>
+        <div><dt data-i18n="t.docker">Images Docker</dt><dd id="t-disk-docker">—</dd></div>
+        <div><dt data-i18n="t.ct">Conteneurs</dt><dd id="t-ct">—</dd></div>
+        <div><dt data-i18n="t.pids">Processus</dt><dd id="t-pids">—</dd></div>
+        <div><dt data-i18n="t.rx">Réseau in</dt><dd id="t-rx">—</dd></div>
+        <div><dt data-i18n="t.tx">Réseau out</dt><dd id="t-tx">—</dd></div>
+        <div><dt data-i18n="t.n">Échantillons</dt><dd id="t-n">—</dd></div>
       </dl>
       <div class="charts">
         <figure>
@@ -115,7 +118,7 @@
           <svg class="spark" id="chart-cpu" viewBox="0 0 280 72" preserveAspectRatio="none"></svg>
         </figure>
         <figure>
-          <figcaption>Disque <em id="cap-disk">%</em></figcaption>
+          <figcaption><span data-i18n="label.disk3">Disque</span> <em id="cap-disk">%</em></figcaption>
           <svg class="spark" id="chart-disk" viewBox="0 0 280 72" preserveAspectRatio="none"></svg>
         </figure>
       </div>
@@ -128,34 +131,35 @@
         <code class="cmd"><span class="prompt">ubuntu@fakevps</span><span id="ssh-cmd">ssh -p 2222 ubuntu@127.0.0.1</span></code>
       </div>
       <div class="actions ssh-actions">
-        <button type="button" class="btn ghost" id="btn-copy">Copier</button>
-        <button type="button" class="btn ghost" id="btn-term">Ouvrir un terminal</button>
+        <button type="button" class="btn ghost" id="btn-copy" data-i18n="btn.copy">Copier</button>
+        <button type="button" class="btn ghost" id="btn-term" data-i18n="btn.term">Ouvrir un terminal</button>
       </div>
     </article>
 
     <article class="tile">
       <h2>Bot</h2>
-      <p class="muted" id="bot-hint">Mets le jeton dans secrets/discord.env puis attache un dossier, par ex. ~/Discord Bot/MyBot</p>
-      <p class="muted hidden" id="bot-attached">Attaché <code id="bot-dir"></code></p>
+      <p class="muted" id="bot-hint" data-i18n="bot.hint">Mets le jeton dans secrets/discord.env puis attache un dossier, par ex. ~/Discord Bot/MyBot</p>
+      <p class="muted hidden" id="bot-attached"><span data-i18n="bot.attached">Attaché</span> <code id="bot-dir"></code></p>
       <dl class="bot-meta">
         <div><dt>Runtime</dt><dd id="bot-runtime">—</dd></div>
-        <div><dt>Jeton</dt><dd id="bot-token">—</dd></div>
+        <div><dt data-i18n="bot.token">Jeton</dt><dd id="bot-token">—</dd></div>
       </dl>
       <div class="attach-row">
         <input type="text" id="bot-path" class="field" placeholder="~/Discord Bot/MyBot" autocomplete="off" />
-        <button type="button" id="btn-browse" class="btn ghost">Parcourir</button>
-        <button type="button" id="btn-attach" class="btn">Attacher</button>
+        <button type="button" id="btn-browse" class="btn ghost" data-i18n="btn.browse">Parcourir</button>
+        <button type="button" id="btn-attach" class="btn" data-i18n="btn.attach">Attacher</button>
       </div>
       <div class="actions bot-actions">
-        <button type="button" id="btn-sync" class="btn">Synchroniser</button>
-        <button type="button" id="btn-restart" class="btn">Relancer</button>
+        <button type="button" id="btn-sync" class="btn" data-i18n="btn.sync">Synchroniser</button>
+        <button type="button" id="btn-restart" class="btn" data-i18n="btn.restart">Relancer</button>
+        <button type="button" id="btn-botlogs" class="btn ghost" data-i18n="btn.botlogs">Logs du bot</button>
       </div>
-      <p class="muted" id="panel-msg">Pas d’UI — aucun port configuré</p>
-      <a class="btn primary hidden" id="panel-link" href="#">Ouvrir le panneau</a>
+      <p class="muted" id="panel-msg" data-i18n="panel.msg">Pas d’UI — aucun port configuré</p>
+      <a class="btn primary hidden" id="panel-link" href="#" data-i18n="panel.open">Ouvrir le panneau</a>
     </article>
 
     <article class="tile">
-      <h2>Santé</h2>
+      <h2 data-i18n="tile.health">Santé</h2>
       <ul class="health" id="health-list">
         <li id="h-ssh"><span class="led"></span><span class="health-name">SSH</span><span class="health-state" id="h-ssh-state">off</span></li>
         <li id="h-docker"><span class="led"></span><span class="health-name">Docker</span><span class="health-state" id="h-docker-state">off</span></li>
@@ -166,7 +170,7 @@
     </article>
 
     <article class="tile tile-log">
-      <h2>Journal</h2>
+      <h2 data-i18n="tile.log">Journal</h2>
       <div class="term term-log">
         <div class="term-bar" aria-hidden="true"><span></span><span></span><span></span><em>journal</em></div>
         <pre id="log" class="log">contrôle du nœud…</pre>
@@ -175,7 +179,7 @@
   </main>
 
   <footer>
-    <p class="foot-line">localhost only · aucune collecte</p>
+    <p class="foot-line" data-i18n="foot.line">localhost only · aucune collecte</p>
     <p class="foot-brand"><a href="https://github.com/Mr-Aurevo-X/FakeVPS">Based on FakeVPS — https://github.com/Mr-Aurevo-X/FakeVPS</a></p>
     <p class="foot-credit">FakeVPS — Copyright (c) 2026 Mr-Aurevo-X</p>
   </footer>
@@ -183,19 +187,33 @@
   <dialog class="diag browse" id="browse">
     <div class="diag-head">
       <div>
-        <p class="eyebrow">Parcourir</p>
-        <h2>Choisir le dossier du bot</h2>
+        <p class="eyebrow" data-i18n="btn.browse">Parcourir</p>
+        <h2 data-i18n="browse.title">Choisir le dossier du bot</h2>
       </div>
-      <button type="button" class="btn" id="browse-close">Fermer</button>
+      <button type="button" class="btn" id="browse-close" data-i18n="btn.close">Fermer</button>
     </div>
     <div class="browse-bar">
-      <button type="button" class="btn ghost" id="browse-up" title="Dossier parent">↑</button>
+      <button type="button" class="btn ghost" id="browse-up" title="↑">↑</button>
       <code id="browse-path">~</code>
     </div>
     <ul class="browse-list" id="browse-list"></ul>
     <div class="actions browse-actions">
-      <button type="button" class="btn primary" id="browse-choose">Attacher ce dossier</button>
+      <button type="button" class="btn primary" id="browse-choose" data-i18n="browse.choose">Attacher ce dossier</button>
     </div>
+  </dialog>
+
+  <dialog class="diag botlogs" id="botlogs">
+    <div class="diag-head">
+      <div>
+        <p class="eyebrow">Bot</p>
+        <h2 data-i18n="botlogs.title">Logs du bot</h2>
+      </div>
+      <div class="actions">
+        <button type="button" class="btn ghost" id="botlogs-refresh" data-i18n="botlogs.refresh">Actualiser</button>
+        <button type="button" class="btn" id="botlogs-close" data-i18n="btn.close">Fermer</button>
+      </div>
+    </div>
+    <pre id="botlogs-pre" class="log botlogs-pre">…</pre>
   </dialog>
 
   <dialog class="diag" id="diag">
@@ -204,7 +222,7 @@
         <p class="eyebrow" id="diag-kicker">Diagnostic</p>
         <h2 id="diag-title">Diagnostic</h2>
       </div>
-      <button type="button" class="btn" id="diag-close">Fermer</button>
+      <button type="button" class="btn" id="diag-close" data-i18n="btn.close">Fermer</button>
     </div>
     <p class="muted" id="diag-lead"></p>
     <ul class="diag-list" id="diag-list"></ul>

@@ -6,9 +6,11 @@ Copyright (c) 2026 Mr-Aurevo-X
 
 from __future__ import annotations
 
+import hmac
 import json
 import os
 import re
+import secrets
 import shutil
 import subprocess
 import sys
@@ -158,6 +160,35 @@ BIN = ROOT / "fakevps"
 LOG_PATH = ROOT / "state" / "logs" / "fakevps.log"
 UP_PID = ROOT / "state" / "up.pid"
 BACKEND_PATH = ROOT / "state" / "backend"
+TOKEN_PATH = ROOT / "state" / "ui.token"
+
+
+def load_or_create_token() -> str:
+    """Session token for state-changing requests (Jupyter-style).
+
+    Stored 600 in state/ so only this user can read it; the CLI appends it
+    to the cockpit URL when opening the browser.
+    """
+    try:
+        tok = TOKEN_PATH.read_text(encoding="utf-8").strip()
+        if tok:
+            return tok
+    except OSError:
+        pass
+    tok = secrets.token_hex(16)
+    TOKEN_PATH.parent.mkdir(parents=True, exist_ok=True)
+    TOKEN_PATH.write_text(tok + "\n", encoding="utf-8")
+    os.chmod(TOKEN_PATH, 0o600)
+    return tok
+
+
+SESSION_TOKEN = ""
+
+
+def token_ok(header_value: str) -> bool:
+    if not SESSION_TOKEN:
+        return True
+    return hmac.compare_digest((header_value or "").strip(), SESSION_TOKEN)
 
 
 def run_fakevps(*args: str) -> subprocess.CompletedProcess[str]:
@@ -314,6 +345,40 @@ class Handler(SimpleHTTPRequestHandler):
         self._json(403, {"error": "localhost cockpit only"})
         return True
 
+    def _reject_if_no_token(self) -> bool:
+        if token_ok(self.headers.get("X-FakeVPS-Token") or ""):
+            return False
+        self._json(403, {"error": "missing session token — open the cockpit with ./fakevps ui"})
+        return True
+
+    def _stream_fakevps(self, *args: str) -> None:
+        """Stream a fakevps command's output line by line (HTTP/1.0, close-delimited)."""
+        self.send_response(200)
+        self.send_header("Content-Type", "text/plain; charset=utf-8")
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        env = os.environ.copy()
+        env["FAKEVPS_SKIP_UI"] = "1"
+        proc = subprocess.Popen(
+            [str(BIN), *args],
+            cwd=str(ROOT),
+            env=env,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1,
+        )
+        rc = -1
+        try:
+            assert proc.stdout is not None
+            for line in proc.stdout:
+                self.wfile.write(redact_home_paths(line).encode("utf-8"))
+                self.wfile.flush()
+            rc = proc.wait()
+            self.wfile.write(f"[exit {rc}]\n".encode("utf-8"))
+        except (BrokenPipeError, ConnectionResetError):
+            proc.terminate()
+
     def _reject_if_huge(self) -> bool:
         try:
             n = int(self.headers.get("Content-Length") or 0)
@@ -379,9 +444,20 @@ class Handler(SimpleHTTPRequestHandler):
             self._json(200, {"log": tail_log(), "starting": up_in_progress()})
             return
         if path == "/api/browse":
+            if self._reject_if_no_token():
+                return
             query = parse_qs(urlparse(self.path).query)
             raw = (query.get("path") or [""])[0]
             self._json(200, browse_payload(raw))
+            return
+        if path == "/api/bot-logs":
+            if self._reject_if_no_token():
+                return
+            proc = run_fakevps("ssh", "--", BOT_LOGS_SCRIPT)
+            if proc.returncode != 0 and not proc.stdout.strip():
+                self._json(500, {"error": redact_home_paths(proc.stderr.strip() or "node is down")})
+                return
+            self._json(200, {"log": redact_home_paths(proc.stdout[-8000:])})
             return
         if path == "/":
             self.path = "/index.html"
@@ -392,9 +468,13 @@ class Handler(SimpleHTTPRequestHandler):
             return
         if self._reject_if_csrf():
             return
+        if self._reject_if_no_token():
+            return
         if self._reject_if_huge():
             return
-        path = urlparse(self.path).path
+        parsed = urlparse(self.path)
+        path = parsed.path
+        stream = "stream=1" in (parsed.query or "")
         if path == "/api/up":
             st = run_fakevps("status", "--json")
             already = False
@@ -442,6 +522,9 @@ class Handler(SimpleHTTPRequestHandler):
             if not os.path.isdir(expanded):
                 self._json(400, {"ok": False, "error": "not a directory"})
                 return
+            if stream:
+                self._stream_fakevps("attach", expanded)
+                return
             proc = run_fakevps("attach", expanded)
             self._json(200 if proc.returncode == 0 else 500, {
                 "ok": proc.returncode == 0,
@@ -474,11 +557,27 @@ class Handler(SimpleHTTPRequestHandler):
         super().do_HEAD()
 
 
+BOT_LOGS_SCRIPT = r"""
+if systemctl is-active discord-bot >/dev/null 2>&1 || systemctl is-enabled discord-bot >/dev/null 2>&1; then
+  echo '--- systemd discord-bot ---'
+  sudo -n journalctl -u discord-bot -n 120 --no-pager 2>/dev/null \
+    || journalctl -u discord-bot -n 120 --no-pager 2>/dev/null || true
+fi
+names="$(docker ps --format '{{.Names}}' 2>/dev/null | grep -iE 'bot|worker|discord' || true)"
+for n in $names; do
+  echo "--- docker $n ---"
+  docker logs --tail 60 "$n" 2>&1 | tail -60
+done
+"""
+
+
 def main() -> None:
+    global SESSION_TOKEN
     wanted = (os.environ.get("UI_HOST") or "127.0.0.1").strip()
     if wanted not in {"127.0.0.1", "localhost", ""}:
         print("[ui] refusing non-loopback bind", file=sys.stderr)
         sys.exit(2)
+    SESSION_TOKEN = load_or_create_token()
     host = "127.0.0.1"
     port = int(os.environ.get("UI_PORT", "8787"))
     httpd = ThreadingHTTPServer((host, port), Handler)

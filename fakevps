@@ -92,7 +92,7 @@ cmd_up() {
   fi
   first_boot_provision || log "provision reported errors — cockpit still available"
   if [[ -z "${FAKEVPS_SKIP_UI:-}" ]]; then
-    open_url "http://127.0.0.1:${UI_PORT}"
+    open_url "$(ui_url)"
   fi
   print_urls
 }
@@ -266,9 +266,8 @@ cmd_ssh() {
 
 cmd_ui() {
   ui_start
-  local url="http://127.0.0.1:${UI_PORT}"
-  printf '%s\n' "$url"
-  open_url "$url"
+  printf 'http://127.0.0.1:%s\n' "$UI_PORT"
+  open_url "$(ui_url)"
 }
 
 cmd_panel() {
