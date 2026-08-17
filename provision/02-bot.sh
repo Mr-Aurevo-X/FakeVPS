@@ -69,8 +69,10 @@ ensure_node() {
   if command -v node >/dev/null 2>&1 && command -v npm >/dev/null 2>&1; then
     return 0
   fi
-  curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
-  DEBIAN_FRONTEND=noninteractive apt-get install -y nodejs
+  # Distro package — do not pipe nodesource setup into a shell.
+  log "installing Node.js from Ubuntu packages"
+  DEBIAN_FRONTEND=noninteractive apt-get update -qq
+  DEBIAN_FRONTEND=noninteractive apt-get install -y nodejs npm
 }
 
 start_node_bot() {

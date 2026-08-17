@@ -7,7 +7,7 @@ Wants=network-online.target
 Type=oneshot
 RemainAfterExit=yes
 WorkingDirectory=@FAKEVPS_ROOT@
-ExecStart=@FAKEVPS_ROOT@/fakevps up
+ExecStart=@FAKEVPS_ROOT@/fakevps @FAKEVPS_UP_ARGS@
 ExecStop=@FAKEVPS_ROOT@/fakevps down
 
 [Install]

@@ -51,10 +51,10 @@ Then:
 ./fakevps restart-bot
 ```
 
-Optional systemd **user** unit (survives closing the terminal):
+Optional systemd **user** unit (survives closing the terminal). It follows `state/backend` or `BACKEND` in `config.env`. If you always use `--fast`, pass the flag (or set `BACKEND=fast`):
 
 ```bash
-./fakevps install-service
+./fakevps install-service --fast
 systemctl --user enable --now fakevps
 ```
 
@@ -119,6 +119,8 @@ See [LICENSE](LICENSE). Custom terms.
 
 A fork may add its own line **below**. It may not remove the origin link.
 
+The license is a **contract**, not a technical lock. GitHub will not stop someone from stripping the link in their own copy. **This** repository stays owner-write only (no write access without an invite).
+
 Copyright (c) 2026 **Mr-Aurevo-X**.
 
 ### Privacy
@@ -128,6 +130,8 @@ The author collects **nothing**. No backdoor, no phone-home, no analytics, no Go
 ### Secrets and git
 
 Never commit `secrets/discord.env`, `config.env`, or `state/`. Examples (`*.example`) are safe to keep.
+
+The public artifact is the **git repository** (or `git archive`), not a zip of this folder. `state/` and leftover Docker graphs can sit on disk even when gitignored. See [SECURITY.md](SECURITY.md).
 
 ---
 
@@ -167,10 +171,10 @@ cp config.env.example config.env
 
 Puis `./fakevps down`, `status`, `ssh`, `ui`, `attach "~/Discord Bot/MyBot"`, `sync`, `restart-bot`.
 
-Service systemd **utilisateur** :
+Service systemd **utilisateur**. Il suit `state/backend` ou `BACKEND` dans `config.env`. Si tu lances toujours `--fast` :
 
 ```bash
-./fakevps install-service
+./fakevps install-service --fast
 systemctl --user enable --now fakevps
 ```
 
@@ -221,6 +225,8 @@ Voir [LICENSE](LICENSE).
 
 Un fork peut ajouter sa ligne **en dessous**. Il ne peut pas retirer le lien d’origine.
 
+La licence est un **contrat**, pas un verrou technique. GitHub n’empêchera pas quelqu’un de retirer le lien dans sa copie. **Ce** dépôt reste en écriture propriétaire (pas d’accès write sans invitation).
+
 Copyright (c) 2026 **Mr-Aurevo-X**.
 
 ### Vie privée
@@ -230,3 +236,5 @@ L’auteur **ne collecte rien**. Pas de backdoor, pas d’appel réseau caché, 
 ### Secrets et git
 
 Ne commite jamais `secrets/discord.env`, `config.env`, ni `state/`.
+
+L’artefact public, c’est le **dépôt git** (ou `git archive`), pas un zip de ce dossier. `state/` et un graphe Docker oublié peuvent rester sur le disque même s’ils sont ignorés par git. Voir [SECURITY.md](SECURITY.md).

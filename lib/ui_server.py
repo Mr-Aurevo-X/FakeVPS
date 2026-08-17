@@ -15,6 +15,33 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
 
+LOOPBACK_IPS = frozenset({"127.0.0.1", "::1"})
+LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
+
+
+def parse_host_header(host_header: str) -> str:
+    raw = (host_header or "").strip().lower()
+    if raw.startswith("["):
+        end = raw.find("]")
+        if end > 0:
+            return raw[1:end]
+        return ""
+    return raw.split(":", 1)[0]
+
+
+def normalize_client_ip(client_ip: str) -> str:
+    ip = (client_ip or "").strip().lower()
+    if ip.startswith("::ffff:"):
+        return ip[7:]
+    return ip
+
+
+def loopback_request_ok(host_header: str, client_ip: str) -> bool:
+    if normalize_client_ip(client_ip) not in LOOPBACK_IPS:
+        return False
+    return parse_host_header(host_header) in LOOPBACK_HOSTS
+
+
 ROOT = Path(os.environ["FAKEVPS_ROOT"])
 UI = ROOT / "ui"
 BIN = ROOT / "fakevps"
@@ -158,6 +185,14 @@ class Handler(SimpleHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def _reject_if_remote(self) -> bool:
+        host = self.headers.get("Host") or ""
+        client = self.client_address[0] if self.client_address else ""
+        if loopback_request_ok(host, client):
+            return False
+        self._json(403, {"error": "localhost only"})
+        return True
+
     def _read_json(self) -> dict:
         n = int(self.headers.get("Content-Length") or 0)
         if n <= 0:
@@ -170,6 +205,8 @@ class Handler(SimpleHTTPRequestHandler):
         return data if isinstance(data, dict) else {}
 
     def do_GET(self) -> None:  # noqa: N802
+        if self._reject_if_remote():
+            return
         path = urlparse(self.path).path
         if path == "/api/status":
             proc = run_fakevps("status", "--json")
@@ -213,6 +250,8 @@ class Handler(SimpleHTTPRequestHandler):
         super().do_GET()
 
     def do_POST(self) -> None:  # noqa: N802
+        if self._reject_if_remote():
+            return
         path = urlparse(self.path).path
         if path == "/api/up":
             st = run_fakevps("status", "--json")
@@ -287,8 +326,17 @@ class Handler(SimpleHTTPRequestHandler):
             return
         self._json(404, {"error": "not found"})
 
+    def do_HEAD(self) -> None:  # noqa: N802
+        if self._reject_if_remote():
+            return
+        super().do_HEAD()
+
 
 def main() -> None:
+    wanted = (os.environ.get("UI_HOST") or "127.0.0.1").strip()
+    if wanted not in {"127.0.0.1", "localhost", ""}:
+        print("[ui] refusing non-loopback bind", file=sys.stderr)
+        sys.exit(2)
     host = "127.0.0.1"
     port = int(os.environ.get("UI_PORT", "8787"))
     httpd = ThreadingHTTPServer((host, port), Handler)

@@ -292,7 +292,7 @@ function recentActivity(raw) {
 function diagnose(s) {
   const issues = [];
   const log = recentActivity(activityText(s));
-  const botDir = String(s.bot_dir_display || s.bot_dir || "");
+  const botDir = String(s.bot_dir_display || "");
   const starting = Boolean(s.starting);
   const online = Boolean(s.running && s.ssh);
   const booting = Boolean(starting || (s.running && !s.ssh));
@@ -516,7 +516,7 @@ function render(s) {
   $("ssh-cmd").textContent = `ssh -p ${s.ssh_port || 2222} ubuntu@127.0.0.1`;
   setHealth("h-ssh", s.ssh ? "ok" : s.running ? "warn" : "off");
   setHealth("h-docker", s.docker ? "ok" : s.ssh ? "warn" : "off");
-  setHealth("h-bot", s.bot ? "ok" : s.bot_dir || s.bot_dir_display ? "warn" : "off");
+  setHealth("h-bot", s.bot ? "ok" : s.bot_attached || s.bot_dir_display ? "warn" : "off");
   setHealth("h-ui", s.ui ? "ok" : "off");
   renderServices(s.services);
   if (s.panel_port) {
@@ -528,7 +528,7 @@ function render(s) {
     $("panel-link").classList.add("hidden");
   }
   const shown = s.bot_dir_display || "";
-  if (shown || s.bot_dir) {
+  if (shown || s.bot_attached) {
     $("bot-hint").classList.add("hidden");
     $("bot-attached").classList.remove("hidden");
     $("bot-dir").textContent = shown || "…";
@@ -544,7 +544,7 @@ function render(s) {
   } else {
     $("bot-token").textContent = "—";
   }
-  $("btn-sync").disabled = !online || !(s.bot_dir || s.bot_dir_display);
+  $("btn-sync").disabled = !online || !(s.bot_attached || s.bot_dir_display);
   $("btn-restart").disabled = !online;
   if (s.activity) {
     renderActivity(s.activity);

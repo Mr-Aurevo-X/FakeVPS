@@ -33,7 +33,7 @@ Based on FakeVPS — https://github.com/Mr-Aurevo-X/FakeVPS
   ./fakevps sync            Re-rsync BOT_DIR
   ./fakevps restart-bot     Restart guest bot (systemd or compose)
   ./fakevps reset           Wipe disk/container and reprovision next up
-  ./fakevps install-service Install systemd --user unit
+  ./fakevps install-service [--fast|--kvm]  systemd --user unit
 
 Windows: use WSL2, then ./fakevps up --fast
 EOF
@@ -133,18 +133,24 @@ status_json() {
     metrics="$(collect_metrics_json 2>/dev/null || true)"
     [[ "$metrics" == \{* ]] || metrics="{}"
   fi
+  local bot_attached=false
+  if [[ -n "${BOT_DIR}" && -d "${BOT_DIR}" ]]; then
+    bot_attached=true
+  fi
   FAKEVPS_METRICS="$metrics" FAKEVPS_PROBE="$probe" FAKEVPS_RUNTIME="$runtime" \
     FAKEVPS_BOT_DIR_DISPLAY="$bot_dir_display" \
     python3 - "$be" "$running" "$ssh_ok" "$docker_ok" "$bot_ok" "$ui_ok" "$uptime" \
-    "$RAM_MB" "$CPUS" "$DISK_GB" "$SSH_PORT" "$UI_PORT" "${BOT_PANEL_PORT:-}" "${BOT_DIR:-}" <<'PY'
+    "$RAM_MB" "$CPUS" "$DISK_GB" "$SSH_PORT" "$UI_PORT" "${BOT_PANEL_PORT:-}" \
+    "$bot_attached" <<'PY'
 import json, os, sys
 keys = [
     "backend", "running", "ssh", "docker", "bot", "ui", "uptime_sec",
-    "ram_mb", "cpus", "disk_gb", "ssh_port", "ui_port", "panel_port", "bot_dir",
+    "ram_mb", "cpus", "disk_gb", "ssh_port", "ui_port", "panel_port",
+    "bot_attached",
 ]
 vals = sys.argv[1:]
 data = dict(zip(keys, vals))
-for k in ("running", "ssh", "docker", "bot", "ui"):
+for k in ("running", "ssh", "docker", "bot", "ui", "bot_attached"):
     data[k] = data[k] == "true"
 for k in ("ram_mb", "cpus", "disk_gb", "ssh_port", "ui_port"):
     data[k] = int(data[k] or 0)
@@ -173,6 +179,7 @@ else:
 host_rt = (os.environ.get("FAKEVPS_RUNTIME") or "none").strip() or "none"
 data["runtime"] = host_rt if host_rt != "none" else (guest_rt or "none")
 data["bot_dir_display"] = os.environ.get("FAKEVPS_BOT_DIR_DISPLAY") or ""
+data.pop("bot_dir", None)
 print(json.dumps(data))
 PY
 }
@@ -240,7 +247,7 @@ cmd_attach() {
   dir="$(cd "$dir" && pwd)"
   write_config_key BOT_DIR "$dir"
   BOT_DIR="$dir"
-  log "BOT_DIR=$dir"
+  log "BOT_DIR=$(display_bot_dir "$dir")"
   if guest_is_up; then
     push_provision_scripts
     provision_bot
@@ -299,12 +306,26 @@ cmd_reset() {
 }
 
 cmd_install_service() {
-  local unit_dir="$HOME/.config/systemd/user"
+  local mode up_args unit_dir
+  mode="$(active_backend)"
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --fast) mode=fast; shift ;;
+      --kvm) mode=kvm; shift ;;
+      *) die "usage: ./fakevps install-service [--fast|--kvm]" ;;
+    esac
+  done
+  up_args="up"
+  if [[ "$mode" == "fast" ]]; then
+    up_args="up --fast"
+  fi
+  unit_dir="$HOME/.config/systemd/user"
   mkdir -p "$unit_dir"
-  sed "s|@FAKEVPS_ROOT@|${FAKEVPS_ROOT}|g" \
+  sed -e "s|@FAKEVPS_ROOT@|${FAKEVPS_ROOT}|g" \
+      -e "s|@FAKEVPS_UP_ARGS@|${up_args}|g" \
     "$FAKEVPS_ROOT/contrib/fakevps.service" >"$unit_dir/fakevps.service"
   systemctl --user daemon-reload
-  printf 'Installed. Enable with:\n  systemctl --user enable --now fakevps\n'
+  printf 'Installed (%s). Enable with:\n  systemctl --user enable --now fakevps\n' "$mode"
 }
 
 main() {

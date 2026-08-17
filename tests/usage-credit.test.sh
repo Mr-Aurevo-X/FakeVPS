@@ -10,7 +10,7 @@ printf '%s\n' "$help_out" | grep -q 'https://github.com/Mr-Aurevo-X/FakeVPS' \
 printf '%s\n' "$help_out" | grep -q 'restart-bot' \
   || { echo "FAIL help missing restart-bot" >&2; exit 1; }
 
-for f in LICENSE README.md SECURITY.md ui/index.html; do
+for f in LICENSE README.md SECURITY.md CONTRIBUTING.md ui/index.html; do
   grep -q 'https://github.com/Mr-Aurevo-X/FakeVPS' "$ROOT/$f" \
     || { echo "FAIL $f missing origin URL" >&2; exit 1; }
 done

@@ -18,12 +18,29 @@ FakeVPS is a **localhost rehearsal** tool. It is not a hosted service.
 
 ### Bind address
 
-Cockpit, SSH, and optional bot panel binds are **127.0.0.1 only**. Nothing is intended to listen on `0.0.0.0`. Treat a bind on all interfaces as a bug.
+Cockpit, SSH, and optional bot panel binds are **127.0.0.1 only**. Nothing is intended to listen on `0.0.0.0`. Treat a bind on all interfaces as a bug. `UI_HOST` cannot move the cockpit off loopback.
+
+The cockpit API has **no login**. Anyone who can open `http://127.0.0.1:8787` on this machine can start/stop the node and attach a folder. Requests whose `Host` header is not `127.0.0.1` / `localhost` are refused (DNS-rebinding guard). Do not expose the port, and do not run FakeVPS on a shared login.
+
+### `--fast` is nearly host-root
+
+`./fakevps up --fast` starts a **privileged** Docker container with `cgroupns=host`. That is close to root on the host. Use it only on a machine you control. Do not expose the node. Do not run `--fast` on a shared computer.
+
+KVM (`./fakevps up`) is the stronger isolation story.
+
+### Guest package install (no `curl | bash`)
+
+First-boot scripts install Docker and Node.js from **Ubuntu packages** (`docker.io`, `nodejs`, `npm`). They do not pipe `get.docker.com` or NodeSource into a shell.
+
+### Git repo vs folder dump
+
+The public artifact is the **git repository**, not a zip of the working folder. `state/` and `secrets/` are gitignored but can still sit on disk — including a leftover Docker graph under `state/fast/docker` (sometimes root-owned). Do not publish a folder dump. Use `git archive` or a clone. `contrib/sanitize-working-tree.sh` removes user-owned leftovers it can delete; it will not `sudo` a root graph.
 
 ### Secrets
 
 - Put Discord credentials in `secrets/discord.env` (gitignored) or in the attached bot’s `.env`.
 - Never commit `secrets/discord.env`, `config.env`, `state/`, or live tokens.
+- If a token was ever pasted into a chat or a log, **reset it** on the Discord developer portal. FakeVPS cannot rotate it for you.
 - `./fakevps attach` / inject may copy keys **into the guest** at `/home/ubuntu/app/.env` (mode `600`). That file lives on your disk, not on a server owned by the author.
 
 ### Reporting a vulnerability
@@ -46,12 +63,29 @@ This GitHub repository is **private** for now.
 
 ### Adresse d’écoute
 
-Cockpit, SSH et panneau bot optionnel écoutent **uniquement 127.0.0.1**. Rien n’est censé écouter sur `0.0.0.0`. Un bind toutes interfaces est un bug.
+Cockpit, SSH et panneau bot optionnel écoutent **uniquement 127.0.0.1**. Rien n’est censé écouter sur `0.0.0.0`. Un bind toutes interfaces est un bug. `UI_HOST` ne peut pas sortir le cockpit de la boucle locale.
+
+L’API du cockpit **n’a pas de login**. Quiconque ouvre `http://127.0.0.1:8787` sur cette machine peut démarrer/arrêter le nœud et attacher un dossier. Une requête dont le `Host` n’est pas `127.0.0.1` / `localhost` est refusée. N’expose pas le port. Ne lance pas FakeVPS sur une session partagée.
+
+### `--fast` est presque root hôte
+
+`./fakevps up --fast` lance un conteneur Docker **privilégié** avec `cgroupns=host`. C’est proche du root de l’hôte. Uniquement sur une machine à toi. N’expose pas le nœud. Ne lance pas `--fast` sur un PC partagé.
+
+KVM (`./fakevps up`) isole mieux.
+
+### Paquets guest (pas de `curl | bash`)
+
+Le premier boot installe Docker et Node.js via les **paquets Ubuntu** (`docker.io`, `nodejs`, `npm`). Les scripts ne pipent plus `get.docker.com` ni NodeSource dans un shell.
+
+### Dépôt git vs zip du dossier
+
+L’artefact public, c’est le **dépôt git**, pas un zip du dossier de travail. `state/` et `secrets/` sont ignorés par git mais peuvent rester sur le disque — y compris un graphe Docker sous `state/fast/docker` (parfois root). Ne publie pas un dump du dossier. Utilise `git archive` ou un clone. `contrib/sanitize-working-tree.sh` enlève ce qu’il peut sans `sudo`.
 
 ### Secrets
 
 - Mets les identifiants Discord dans `secrets/discord.env` (ignoré par git) ou dans le `.env` du bot attaché.
 - Ne commite jamais `secrets/discord.env`, `config.env`, `state/`, ni un jeton réel.
+- Si un jeton a fuité dans un chat ou un log, **réinitialise-le** sur le portail développeur Discord. FakeVPS ne peut pas le tourner à ta place.
 - `./fakevps attach` / l’injection peut copier des clés **dans le guest** (`/home/ubuntu/app/.env`, mode `600`). Ce fichier reste sur ton disque.
 
 ### Signaler une faille

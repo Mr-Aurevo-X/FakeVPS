@@ -5,9 +5,14 @@ set -euo pipefail
 
 log() { printf '[guest] %s\n' "$*"; }
 
+apt-get update -qq
+DEBIAN_FRONTEND=noninteractive apt-get install -y -qq git jq ca-certificates curl >/dev/null
+
 if ! command -v docker >/dev/null 2>&1; then
-  log "installing Docker"
-  curl -fsSL https://get.docker.com | sh
+  # Distro package — do not pipe get.docker.com into a shell.
+  log "installing Docker from Ubuntu packages"
+  DEBIAN_FRONTEND=noninteractive apt-get install -y docker.io
+  DEBIAN_FRONTEND=noninteractive apt-get install -y fuse-overlayfs || true
   usermod -aG docker ubuntu 2>/dev/null || true
 fi
 
@@ -56,6 +61,4 @@ if command -v ufw >/dev/null 2>&1; then
   ufw --force enable >/dev/null || true
 fi
 
-apt-get update -qq
-DEBIAN_FRONTEND=noninteractive apt-get install -y -qq git jq ca-certificates curl >/dev/null
 log "packages ready"

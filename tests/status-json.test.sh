@@ -20,13 +20,17 @@ data = json.loads(raw)
 blob = json.dumps(data)
 if "DISCORD_TOKEN" in blob:
     raise SystemExit("FAIL status JSON leaked DISCORD_TOKEN")
-for key in ("services", "token_present", "runtime", "bot_dir_display"):
+for key in ("services", "token_present", "runtime", "bot_dir_display", "bot_attached"):
     if key not in data:
         raise SystemExit(f"FAIL missing {key}")
+if "bot_dir" in data:
+    raise SystemExit("FAIL status JSON must not include raw bot_dir")
 if not isinstance(data["services"], list):
     raise SystemExit("FAIL services must be a list")
 if not isinstance(data["token_present"], bool):
     raise SystemExit("FAIL token_present must be a bool")
+if not isinstance(data["bot_attached"], bool):
+    raise SystemExit("FAIL bot_attached must be a bool")
 shown = str(data.get("bot_dir_display") or "")
 if shown.startswith("/home/") or shown.startswith("/Users/"):
     raise SystemExit("FAIL bot_dir_display looks like a raw home path")
