@@ -16,6 +16,13 @@ if ! command -v docker >/dev/null 2>&1; then
   usermod -aG docker ubuntu 2>/dev/null || true
 fi
 
+# docker.io does not ship the compose/buildx CLI plugins.
+if ! docker compose version >/dev/null 2>&1; then
+  log "installing docker compose plugin"
+  DEBIAN_FRONTEND=noninteractive apt-get install -y docker-compose-v2
+  DEBIAN_FRONTEND=noninteractive apt-get install -y docker-buildx || true
+fi
+
 # Nested overlayfs (Docker-in-Docker on overlay) fails whiteouts
 # (hsperfdata_root/.wh.*). Pick a graph driver that matches the backing FS.
 mkdir -p /etc/docker

@@ -171,8 +171,21 @@ compose_has_bot_container() {
   docker ps --format '{{.Names}}' | grep -qiE 'bot|worker|discord'
 }
 
+# Older nodes were provisioned before the compose plugin was part of first boot.
+ensure_compose() {
+  if docker compose version >/dev/null 2>&1; then
+    return 0
+  fi
+  log "installing docker compose plugin"
+  DEBIAN_FRONTEND=noninteractive apt-get update -qq
+  DEBIAN_FRONTEND=noninteractive apt-get install -y docker-compose-v2
+  DEBIAN_FRONTEND=noninteractive apt-get install -y docker-buildx || true
+  docker compose version >/dev/null 2>&1
+}
+
 case "$rt" in
   compose)
+    ensure_compose || { log "docker compose unavailable — cannot deploy this bot"; exit 1; }
     if [[ -z "$compose_file" ]]; then
       for f in docker-compose.prod.yml docker-compose.yml compose.yaml docker-compose.yaml; do
         if [[ -f "$APP/$f" ]]; then
