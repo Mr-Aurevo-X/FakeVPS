@@ -363,6 +363,24 @@ function diagnose(s) {
       fix: "Recopie le .env complet du bot dans secrets/discord.env\n./fakevps ssh -- rm -f /home/ubuntu/app/.env\n./fakevps attach \"~/Discord Bot/MyBot\"",
     });
   }
+  if (lookAtLog && (log.includes("environment variable not found: database_url") || log.includes("database_url missing"))) {
+    issues.push({
+      id: "database-url",
+      level: "off",
+      title: "DATABASE_URL manquant",
+      detail: "Prisma ne peut pas migrer sans DATABASE_URL. Le .env injecté ne contient pas cette clé.",
+      fix: "Ajoute DATABASE_URL=… dans secrets/discord.env (ou dans le .env du bot)\n./fakevps attach \"~/Discord Bot/MyBot\"",
+    });
+  }
+  if (lookAtLog && (log.includes("error ts2307") || log.includes("service not installed"))) {
+    issues.push({
+      id: "ts-build",
+      level: "off",
+      title: "Build TypeScript incomplet",
+      detail: "Les packages du monorepo ne sont pas compilés (Cannot find module @scope/…). Le service n’a pas été installé.",
+      fix: "Vérifie que le package.json racine a un script build/build:ci\n./fakevps attach \"~/Discord Bot/MyBot\"",
+    });
+  }
   if (lookAtLog && (log.includes("whiteout") || log.includes("operation not permitted"))) {
     issues.push({
       id: "dind",
@@ -546,6 +564,10 @@ function render(s) {
   }
   $("btn-sync").disabled = !online || !(s.bot_attached || s.bot_dir_display);
   $("btn-restart").disabled = !online;
+  $("btn-down").textContent = s.ephemeral ? "Arrêter (efface tout)" : "Arrêter";
+  $("btn-down").title = s.ephemeral
+    ? "EPHEMERAL=true — l’extinction efface disque du nœud, images et journaux"
+    : "";
   if (s.activity) {
     renderActivity(s.activity);
   } else if (starting) {
@@ -639,6 +661,70 @@ async function botAction(path, label) {
     refreshStatus();
   }
 }
+
+let browsePath = "~";
+
+function browseJoin(base, name) {
+  return base === "~" ? `~/${name}` : `${base}/${name}`;
+}
+
+function browseBadge(kind, label) {
+  const span = document.createElement("span");
+  span.className = `browse-badge browse-badge-${kind}`;
+  span.textContent = label;
+  return span;
+}
+
+function renderBrowse(data) {
+  browsePath = data.path || "~";
+  $("browse-path").textContent = browsePath;
+  $("browse-up").disabled = !data.parent;
+  $("browse-up").dataset.parent = data.parent || "";
+  const list = $("browse-list");
+  list.textContent = "";
+  for (const d of data.dirs || []) {
+    const li = document.createElement("li");
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "browse-item";
+    btn.textContent = d.name;
+    btn.addEventListener("click", () => loadBrowse(browseJoin(browsePath, d.name)));
+    li.append(btn);
+    if (d.has_env) li.append(browseBadge("env", ".env"));
+    if (d.has_bot) li.append(browseBadge("bot", "bot"));
+    list.append(li);
+  }
+  if (!(data.dirs || []).length) {
+    const li = document.createElement("li");
+    li.className = "browse-empty muted";
+    li.textContent = "aucun sous-dossier";
+    list.append(li);
+  }
+}
+
+async function loadBrowse(path) {
+  try {
+    const data = await api(`/api/browse?path=${encodeURIComponent(path || "~")}`);
+    renderBrowse(data);
+  } catch (err) {
+    renderActivity(String(err.message || err));
+  }
+}
+
+$("btn-browse").addEventListener("click", () => {
+  $("browse").showModal();
+  loadBrowse($("bot-path").value.trim() || "~");
+});
+$("browse-close").addEventListener("click", () => $("browse").close());
+$("browse-up").addEventListener("click", () => {
+  const parent = $("browse-up").dataset.parent;
+  if (parent) loadBrowse(parent);
+});
+$("browse-choose").addEventListener("click", () => {
+  $("bot-path").value = browsePath;
+  $("browse").close();
+  attachBot();
+});
 
 $("btn-diag").addEventListener("click", () => {
   openDiag();

@@ -144,10 +144,27 @@ PY
       || corepack prepare pnpm@9.15.0 --activate
     sudo -u ubuntu env CI=true npm_config_update_notifier=false PATH="$PATH" pnpm install
     if grep -q '"db:migrate"' package.json; then
-      sudo -u ubuntu env CI=true PATH="$PATH" pnpm db:migrate || sudo -u ubuntu env CI=true PATH="$PATH" pnpm db:push || true
+      if grep -qE '^DATABASE_URL=.+' "$APP/.env" 2>/dev/null; then
+        sudo -u ubuntu env CI=true PATH="$PATH" pnpm db:migrate || sudo -u ubuntu env CI=true PATH="$PATH" pnpm db:push || true
+      else
+        log "DATABASE_URL missing from .env — skipping db:migrate (add it to secrets/discord.env, then attach again)"
+      fi
+    fi
+    # Monorepo: root build scripts compile workspace packages in dependency
+    # order; a bare --filter build leaves @scope/* deps without dist.
+    local build_ok=true
+    if grep -qE '"build:ci"[[:space:]]*:' package.json; then
+      sudo -u ubuntu env CI=true PATH="$PATH" pnpm run build:ci || build_ok=false
+    elif grep -qE '"build"[[:space:]]*:' package.json; then
+      sudo -u ubuntu env CI=true PATH="$PATH" pnpm run build || build_ok=false
+    elif [[ -f apps/bot/package.json ]]; then
+      sudo -u ubuntu env CI=true PATH="$PATH" pnpm --filter "./apps/bot..." build || build_ok=false
+    fi
+    if [[ "$build_ok" != true ]]; then
+      log "build failed — service NOT installed (fix the errors above, then ./fakevps attach again)"
+      return 1
     fi
     if [[ -f apps/bot/package.json ]]; then
-      sudo -u ubuntu env CI=true PATH="$PATH" pnpm --filter "./apps/bot..." build || true
       exec_start="$(command -v pnpm) --filter ./apps/bot start"
     else
       exec_start="${start_cmd:-$(command -v pnpm) start}"
@@ -169,6 +186,50 @@ PY
 
 compose_has_bot_container() {
   docker ps --format '{{.Names}}' | grep -qiE 'bot|worker|discord'
+}
+
+# List ${VAR} references of a compose file that have no default value and are
+# absent (or empty) in $APP/.env — the ones compose will refuse or blank out.
+missing_compose_env() {
+  local file="$1"
+  python3 - "$APP/$file" "$APP/.env" <<'PY'
+import re
+import sys
+from pathlib import Path
+
+compose = Path(sys.argv[1]).read_text(encoding="utf-8", errors="replace")
+have = set()
+env_path = Path(sys.argv[2])
+if env_path.is_file():
+    for raw in env_path.read_text(encoding="utf-8", errors="replace").splitlines():
+        line = raw.strip()
+        if line and not line.startswith("#") and "=" in line:
+            key, value = line.split("=", 1)
+            if value.strip():
+                have.add(key.strip())
+missing = []
+for m in re.finditer(r"\$\{([A-Za-z_][A-Za-z0-9_]*)(:?[-?][^}]*)?\}", compose):
+    name, op = m.group(1), m.group(2) or ""
+    has_default = op.startswith("-") or op.startswith(":-")
+    if not has_default and name not in have and name not in missing:
+        missing.append(name)
+print(" ".join(missing))
+PY
+}
+
+# Fail fast with an actionable message instead of letting `up` abort halfway.
+compose_env_preflight() {
+  local file="$1"
+  local missing
+  missing="$(missing_compose_env "$file" 2>/dev/null || true)"
+  if [[ -n "$missing" ]]; then
+    log "missing env keys for $file: $missing"
+    log "add them to secrets/discord.env (or BOT_DIR/.env), then ./fakevps attach again"
+  fi
+  if ! docker compose -f "$file" --env-file .env config -q >/dev/null 2>&1; then
+    return 1
+  fi
+  return 0
 }
 
 # Older nodes were provisioned before the compose plugin was part of first boot.
@@ -204,9 +265,17 @@ case "$rt" in
     if grep -qE '^[[:space:]]*profiles:' "$APP/$compose_file"; then
       extra+=(--profile music)
     fi
-    log "docker compose -f $compose_file ${extra[*]:-} up -d --build"
-    if ! docker compose -f "$compose_file" --env-file .env "${extra[@]}" up -d --build; then
-      log "compose $compose_file failed — trying infra compose + Node"
+    prod_ok=false
+    if compose_env_preflight "$compose_file"; then
+      log "docker compose -f $compose_file ${extra[*]:-} up -d --build"
+      if docker compose -f "$compose_file" --env-file .env "${extra[@]}" up -d --build; then
+        prod_ok=true
+      fi
+    else
+      log "compose $compose_file config invalid (missing env) — skipping it"
+    fi
+    if [[ "$prod_ok" != true ]]; then
+      log "compose $compose_file not deployed — trying infra compose + Node"
       docker compose -f "$compose_file" down >/dev/null 2>&1 || true
       if [[ -f "$APP/docker-compose.yml" && "$compose_file" != "docker-compose.yml" ]]; then
         docker compose -f docker-compose.yml --env-file .env up -d --build || true

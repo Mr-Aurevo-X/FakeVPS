@@ -634,6 +634,61 @@ body.is-online {
 .log-inject { color: #93c5fd; }
 .log-attach { color: #86efac; }
 
+.browse-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 6px 0 12px;
+}
+.browse-bar code {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+.browse-list {
+  list-style: none;
+  margin: 0 0 14px;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+  max-height: 46vh;
+  overflow: auto;
+}
+.browse-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.browse-item {
+  flex: 1;
+  text-align: left;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.28);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+.browse-item:hover { border-color: rgba(255, 255, 255, 0.28); }
+.browse-badge {
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  color: var(--muted);
+}
+.browse-badge-env { color: #86efac; border-color: rgba(134, 239, 172, 0.4); }
+.browse-badge-bot { color: #93c5fd; border-color: rgba(147, 197, 253, 0.4); }
+.browse-empty { padding: 8px 4px; font-size: 0.85rem; }
+.browse-actions { justify-content: flex-end; }
+
 .hidden { display: none !important; }
 
 .diag {

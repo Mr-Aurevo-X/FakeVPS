@@ -78,7 +78,14 @@ fast_down() {
 }
 
 fast_reset() {
+  command -v docker >/dev/null 2>&1 || return 0
   docker rm -f "$FAST_NAME" >/dev/null 2>&1 || true
-  rm -rf "$STATE_DIR/fast/docker" "$STATE_DIR/fast/containerd"
+  rm -rf "$STATE_DIR/fast/docker" "$STATE_DIR/fast/containerd" 2>/dev/null || true
+  # The inner Docker graph is written by root inside the node — if plain rm
+  # left anything behind, delete it through a short-lived container instead.
+  if [[ -n "$(ls -A "$STATE_DIR/fast/docker" 2>/dev/null)" || -n "$(ls -A "$STATE_DIR/fast/containerd" 2>/dev/null)" ]]; then
+    docker run --rm -v "$STATE_DIR/fast:/wipe" "$FAST_IMAGE" \
+      bash -c 'rm -rf /wipe/docker /wipe/containerd' >/dev/null 2>&1 || true
+  fi
   mkdir -p "$STATE_DIR/fast/docker" "$STATE_DIR/fast/containerd"
 }

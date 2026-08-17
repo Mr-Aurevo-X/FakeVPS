@@ -25,6 +25,16 @@ assert not u.csrf_ok("", "", 8787)
 assert not u.csrf_ok("http://127.0.0.1:9", "", 8787)
 assert u.redact_home_paths("BOT_DIR=/home/x/bot", home="/home/x") == "BOT_DIR=~/bot"
 assert u.redact_home_paths("generated /home/x/secrets/key", home="/home/x") == "generated ~/secrets/key"
+
+# Folder picker: never leaves $HOME, never leaks raw paths.
+assert u.safe_browse_path("/etc") is None
+assert u.safe_browse_path("~/../../etc") is None
+assert u.safe_browse_path("/") is None
+assert u.safe_browse_path("~") == u.HOME.resolve()
+payload = u.browse_payload("/etc")
+assert payload["path"] == "~", payload
+assert payload["parent"] == ""
+assert all(not d["name"].startswith(".") for d in payload["dirs"])
 print("cockpit host/bind checks ok")
 PY
 

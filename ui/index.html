@@ -143,6 +143,7 @@
       </dl>
       <div class="attach-row">
         <input type="text" id="bot-path" class="field" placeholder="~/Discord Bot/MyBot" autocomplete="off" />
+        <button type="button" id="btn-browse" class="btn ghost">Parcourir</button>
         <button type="button" id="btn-attach" class="btn">Attacher</button>
       </div>
       <div class="actions bot-actions">
@@ -178,6 +179,24 @@
     <p class="foot-brand"><a href="https://github.com/Mr-Aurevo-X/FakeVPS">Based on FakeVPS — https://github.com/Mr-Aurevo-X/FakeVPS</a></p>
     <p class="foot-credit">FakeVPS — Copyright (c) 2026 Mr-Aurevo-X</p>
   </footer>
+
+  <dialog class="diag browse" id="browse">
+    <div class="diag-head">
+      <div>
+        <p class="eyebrow">Parcourir</p>
+        <h2>Choisir le dossier du bot</h2>
+      </div>
+      <button type="button" class="btn" id="browse-close">Fermer</button>
+    </div>
+    <div class="browse-bar">
+      <button type="button" class="btn ghost" id="browse-up" title="Dossier parent">↑</button>
+      <code id="browse-path">~</code>
+    </div>
+    <ul class="browse-list" id="browse-list"></ul>
+    <div class="actions browse-actions">
+      <button type="button" class="btn primary" id="browse-choose">Attacher ce dossier</button>
+    </div>
+  </dialog>
 
   <dialog class="diag" id="diag">
     <div class="diag-head">

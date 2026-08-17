@@ -226,6 +226,8 @@ inject_bot_env() {
   local tmp
   if [[ -n "${BOT_DIR}" && -f "${BOT_DIR}/.env" ]]; then
     bot_env="${BOT_DIR}/.env"
+  elif [[ -n "${BOT_DIR}" ]] && compgen -G "${BOT_DIR}/.env*.example" >/dev/null; then
+    log "BOT_DIR has only .env.example — attach the folder that holds the real .env, or fill secrets/discord.env"
   fi
   if [[ -f "$SECRETS_DIR/discord.env" ]]; then
     secrets_env="$SECRETS_DIR/discord.env"

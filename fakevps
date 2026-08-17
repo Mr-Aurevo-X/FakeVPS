@@ -22,7 +22,7 @@ Copyright (c) 2026 Mr-Aurevo-X
 Based on FakeVPS — https://github.com/Mr-Aurevo-X/FakeVPS
 
   ./fakevps up [--fast]     Start the node + cockpit
-  ./fakevps down            Stop the node and the cockpit
+  ./fakevps down [--wipe]   Stop node + cockpit (--wipe erases all stored state)
   ./fakevps status [--json]
   ./fakevps metrics         Envelope telemetry JSON (guest only)
   ./fakevps logs
@@ -88,8 +88,31 @@ cmd_up() {
   print_urls
 }
 
+# Erase everything the node stored: guest disk (bot code + injected .env),
+# fast Docker graph, logs, caches. secrets/ and the host SSH key are kept.
+wipe_state() {
+  qemu_reset_disk
+  fast_reset
+  rm -f "$(marker_path)" "$STATE_DIR/backend" "$KNOWN_HOSTS"
+  rm -f "$STATE_DIR"/metrics.* "$STATE_DIR"/.env.inject.* 2>/dev/null || true
+  rm -f "$STATE_DIR/kvm/serial.log" 2>/dev/null || true
+  rm -rf "$STATE_DIR/logs"
+  mkdir -p "$STATE_DIR/logs"
+  log "wipe complete — the node kept nothing (next up re-provisions)"
+}
+
 cmd_down() {
   ensure_dirs
+  local wipe=false
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --wipe) wipe=true; shift ;;
+      *) die "usage: ./fakevps down [--wipe]" ;;
+    esac
+  done
+  if is_ephemeral; then
+    wipe=true
+  fi
   local be
   be="$(active_backend)"
   log "stopping ($be)"
@@ -102,6 +125,9 @@ cmd_down() {
       ;;
   esac
   ui_stop
+  if [[ "$wipe" == true ]]; then
+    wipe_state
+  fi
 }
 
 guest_is_up() {
@@ -138,20 +164,24 @@ status_json() {
   if [[ -n "${BOT_DIR}" && -d "${BOT_DIR}" ]]; then
     bot_attached=true
   fi
+  local ephemeral=false
+  if is_ephemeral; then
+    ephemeral=true
+  fi
   FAKEVPS_METRICS="$metrics" FAKEVPS_PROBE="$probe" FAKEVPS_RUNTIME="$runtime" \
     FAKEVPS_BOT_DIR_DISPLAY="$bot_dir_display" \
     python3 - "$be" "$running" "$ssh_ok" "$docker_ok" "$bot_ok" "$ui_ok" "$uptime" \
     "$RAM_MB" "$CPUS" "$DISK_GB" "$SSH_PORT" "$UI_PORT" "${BOT_PANEL_PORT:-}" \
-    "$bot_attached" <<'PY'
+    "$bot_attached" "$ephemeral" <<'PY'
 import json, os, sys
 keys = [
     "backend", "running", "ssh", "docker", "bot", "ui", "uptime_sec",
     "ram_mb", "cpus", "disk_gb", "ssh_port", "ui_port", "panel_port",
-    "bot_attached",
+    "bot_attached", "ephemeral",
 ]
 vals = sys.argv[1:]
 data = dict(zip(keys, vals))
-for k in ("running", "ssh", "docker", "bot", "ui", "bot_attached"):
+for k in ("running", "ssh", "docker", "bot", "ui", "bot_attached", "ephemeral"):
     data[k] = data[k] == "true"
 for k in ("ram_mb", "cpus", "disk_gb", "ssh_port", "ui_port"):
     data[k] = int(data[k] or 0)
@@ -251,7 +281,7 @@ cmd_attach() {
   log "BOT_DIR=$(display_bot_dir "$dir")"
   if guest_is_up; then
     push_provision_scripts
-    provision_bot
+    provision_bot || die "bot deploy failed — fix the errors above, then ./fakevps attach again"
   else
     log "node is down — bot will deploy on next ./fakevps up"
   fi
@@ -300,9 +330,7 @@ EOF
 
 cmd_reset() {
   cmd_down || true
-  qemu_reset_disk
-  fast_reset
-  rm -f "$(marker_path)"
+  wipe_state
   log "reset complete — next up is a fresh node"
 }
 

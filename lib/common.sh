@@ -14,6 +14,7 @@ load_config() {
   BOT_RUNTIME=auto
   BOT_PANEL_PORT=""
   BACKEND=kvm
+  EPHEMERAL=false
 
   if [[ -f "$FAKEVPS_ROOT/config.env" ]]; then
     set -a
@@ -86,6 +87,13 @@ die() {
 
 require_cmd() {
   command -v "$1" >/dev/null 2>&1 || die "missing command: $1"
+}
+
+is_ephemeral() {
+  case "${EPHEMERAL:-false}" in
+    true|1|yes|on) return 0 ;;
+    *) return 1 ;;
+  esac
 }
 
 active_backend() {

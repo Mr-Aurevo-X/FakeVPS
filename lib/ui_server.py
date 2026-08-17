@@ -14,7 +14,7 @@ import subprocess
 import sys
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
 LOOPBACK_IPS = frozenset({"127.0.0.1", "::1"})
 LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
@@ -82,6 +82,74 @@ def redact_home_paths(text: str, home: str | None = None) -> str:
     out = re.sub(r"^/home/[^/\s\"']+", "~", out, flags=re.M)
     out = re.sub(r"^/Users/[^/\s\"']+", "~", out, flags=re.M)
     return out
+
+
+HOME = Path.home()
+
+BOT_MARKERS = (
+    "package.json",
+    "docker-compose.yml",
+    "docker-compose.prod.yml",
+    "compose.yaml",
+    "docker-compose.yaml",
+    "Dockerfile",
+    "bot.py",
+    "main.py",
+)
+
+
+def safe_browse_path(raw: str) -> Path | None:
+    """Resolve a folder-picker path; only directories inside $HOME are allowed."""
+    target = Path(os.path.expanduser((raw or "").strip() or "~"))
+    try:
+        real = target.resolve()
+    except OSError:
+        return None
+    home = HOME.resolve()
+    if real != home and home not in real.parents:
+        return None
+    try:
+        if not real.is_dir():
+            return None
+    except OSError:
+        return None
+    return real
+
+
+def tilde_display(real: Path) -> str:
+    home = HOME.resolve()
+    if real == home:
+        return "~"
+    return "~/" + real.relative_to(home).as_posix()
+
+
+def browse_payload(raw: str) -> dict:
+    real = safe_browse_path(raw) or HOME.resolve()
+    home = HOME.resolve()
+    dirs = []
+    try:
+        entries = sorted(real.iterdir(), key=lambda p: p.name.lower())
+    except OSError:
+        entries = []
+    for entry in entries:
+        if entry.name.startswith("."):
+            continue
+        try:
+            if not entry.is_dir():
+                continue
+        except OSError:
+            continue
+        try:
+            has_env = (entry / ".env").is_file()
+            has_bot = any((entry / marker).exists() for marker in BOT_MARKERS)
+        except OSError:
+            has_env = False
+            has_bot = False
+        dirs.append({"name": entry.name, "has_env": has_env, "has_bot": has_bot})
+        if len(dirs) >= 500:
+            break
+    parent = "" if real == home else tilde_display(real.parent)
+    return {"path": tilde_display(real), "parent": parent, "dirs": dirs}
 
 
 ROOT = Path(os.environ["FAKEVPS_ROOT"])
@@ -309,6 +377,11 @@ class Handler(SimpleHTTPRequestHandler):
             return
         if path == "/api/logs":
             self._json(200, {"log": tail_log(), "starting": up_in_progress()})
+            return
+        if path == "/api/browse":
+            query = parse_qs(urlparse(self.path).query)
+            raw = (query.get("path") or [""])[0]
+            self._json(200, browse_payload(raw))
             return
         if path == "/":
             self.path = "/index.html"
