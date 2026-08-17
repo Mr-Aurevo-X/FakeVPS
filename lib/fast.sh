@@ -41,13 +41,21 @@ fast_up() {
     ports+=(-p "127.0.0.1:${BOT_PANEL_PORT}:${BOT_PANEL_PORT}")
   fi
   docker rm -f "$FAST_NAME" >/dev/null 2>&1 || true
-  log "starting Docker VPS (${RAM_MB} MB, ${CPUS} CPU)"
+  # Docker refuses --cpus above the host's core count (exit 125); clamp so
+  # small hosts (2-core laptops, CI runners) still boot.
+  local host_cpus cpus="$CPUS"
+  host_cpus="$(nproc 2>/dev/null || echo "$CPUS")"
+  if (( cpus > host_cpus )); then
+    log "host has only ${host_cpus} CPU — clamping node from ${CPUS}"
+    cpus="$host_cpus"
+  fi
+  log "starting Docker VPS (${RAM_MB} MB, ${cpus} CPU)"
   docker run -d \
     --name "$FAST_NAME" \
     --privileged \
     --cgroupns=host \
     --memory="${RAM_MB}m" \
-    --cpus="$CPUS" \
+    --cpus="$cpus" \
     --hostname fakevps \
     -v /sys/fs/cgroup:/sys/fs/cgroup:rw \
     -v "$STATE_DIR/fast/docker:/var/lib/docker" \

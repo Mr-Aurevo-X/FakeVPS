@@ -11,12 +11,14 @@ grep -q 'snapshots need the kvm backend' "$ROOT/fakevps" || fail "fast refusal m
 grep -q 'qemu-img snapshot -c' "$ROOT/fakevps" || fail "snapshot save missing"
 grep -q 'qemu-img snapshot -a' "$ROOT/fakevps" || fail "snapshot restore missing"
 
-# Without a disk the command must fail with a clear message, not crash.
+# Without a disk (or without qemu-img on this machine) the command must
+# fail with a clear message, not crash.
 if out="$("$ROOT/fakevps" snapshot list 2>&1)"; then
   # A disk may exist on a dev machine; then listing must work.
   :
 else
-  printf '%s\n' "$out" | grep -qE 'no node disk|kvm backend' || fail "snapshot list bad error: $out"
+  printf '%s\n' "$out" | grep -qiE 'no node disk|kvm backend|qemu-img' \
+    || fail "snapshot list bad error: $out"
 fi
 
 # Healthcheck: present, gating, with journal output on failure.
