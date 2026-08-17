@@ -75,6 +75,7 @@
         <li id="h-bot">Bot</li>
         <li id="h-ui">Cockpit</li>
       </ul>
+      <button type="button" class="btn ghost" id="btn-diag">Diagnostic</button>
     </article>
 
     <article class="tile tile-log">
@@ -87,6 +88,18 @@
     <p class="foot-line">localhost only · 127.0.0.1</p>
     <p class="foot-brand">FakeVPS — Copyright (c) 2026 Mr-Aurevo-X</p>
   </footer>
+
+  <dialog class="diag" id="diag">
+    <div class="diag-head">
+      <div>
+        <p class="eyebrow" id="diag-kicker">Diagnostic</p>
+        <h2 id="diag-title">Diagnostic</h2>
+      </div>
+      <button type="button" class="btn" id="diag-close">Fermer</button>
+    </div>
+    <p class="muted" id="diag-lead"></p>
+    <ul class="diag-list" id="diag-list"></ul>
+  </dialog>
   <script src="app.js"></script>
 </body>
 </html>
