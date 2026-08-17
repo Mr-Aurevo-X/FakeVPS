@@ -1,0 +1,9 @@
+# Optional manifest. Copy into a Discord bot repo as fakevps.bot.yml
+# to override auto-detection.
+
+runtime: auto
+# runtime: compose | docker | node | python
+
+# compose_file: docker-compose.yml
+# start: npm start
+# panel_port: 3000

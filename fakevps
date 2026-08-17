@@ -1,0 +1,244 @@
+#!/usr/bin/env bash
+# FakeVPS — start/stop a local Ubuntu node that feels like a paid VPS.
+set -euo pipefail
+
+FAKEVPS_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/common.sh
+source "$FAKEVPS_ROOT/lib/common.sh"
+# shellcheck source=lib/ssh.sh
+source "$FAKEVPS_ROOT/lib/ssh.sh"
+for _lib in qemu fast provision ui-server; do
+  if [[ -f "$FAKEVPS_ROOT/lib/${_lib}.sh" ]]; then
+    # shellcheck disable=SC1090
+    source "$FAKEVPS_ROOT/lib/${_lib}.sh"
+  fi
+done
+
+usage() {
+  cat <<'EOF'
+FakeVPS — rehearse a paid VPS locally
+
+  ./fakevps up [--fast]     Start the node + cockpit
+  ./fakevps down            Clean stop (ACPI / docker stop)
+  ./fakevps status [--json]
+  ./fakevps logs
+  ./fakevps ssh [--] [cmd]
+  ./fakevps ui              Open http://127.0.0.1:8787
+  ./fakevps panel           Open bot panel if BOT_PANEL_PORT is set
+  ./fakevps attach <dir>    Point BOT_DIR at any Discord bot and deploy
+  ./fakevps sync            Re-rsync BOT_DIR
+  ./fakevps reset           Wipe disk/container and reprovision next up
+  ./fakevps install-service Install systemd --user unit
+
+Windows: use WSL2, then ./fakevps up --fast
+EOF
+}
+
+cmd_up() {
+  local mode="$BACKEND"
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --fast) mode=fast; shift ;;
+      --kvm) mode=kvm; shift ;;
+      *) die "unknown flag: $1" ;;
+    esac
+  done
+  ensure_dirs
+  ensure_ssh_key
+  if [[ -z "${FAKEVPS_SKIP_UI:-}" ]]; then
+    ui_start
+  fi
+  if [[ "$mode" == "fast" ]]; then
+    fast_up
+  else
+    qemu_up
+  fi
+  wait_ssh
+  first_boot_provision
+  if [[ -z "${FAKEVPS_SKIP_UI:-}" ]]; then
+    open_url "http://127.0.0.1:${UI_PORT}"
+  fi
+  printf '\n  Cockpit  http://127.0.0.1:%s\n' "$UI_PORT"
+  printf '  SSH      ssh -p %s %s@127.0.0.1\n' "$SSH_PORT" "$SSH_USER"
+  if [[ -n "${BOT_PANEL_PORT}" ]]; then
+    printf '  Panel    http://127.0.0.1:%s\n' "$BOT_PANEL_PORT"
+  fi
+  printf '\n'
+}
+
+cmd_down() {
+  ensure_dirs
+  local be
+  be="$(active_backend)"
+  log "stopping ($be)"
+  case "$be" in
+    fast) fast_down ;;
+    kvm) qemu_acpi_down ;;
+    *)
+      fast_down || true
+      qemu_acpi_down || true
+      ;;
+  esac
+}
+
+guest_is_up() {
+  guest_ssh true >/dev/null 2>&1
+}
+
+status_json() {
+  local be running=false ssh_ok=false docker_ok=false bot_ok=false ui_ok=false
+  be="$(active_backend 2>/dev/null || echo "$BACKEND")"
+  if [[ "$be" == "fast" ]] && fast_running; then running=true; fi
+  if [[ "$be" == "kvm" ]] && qemu_running; then running=true; fi
+  if [[ "$running" == false ]]; then
+    if qemu_running; then be=kvm; running=true; fi
+    if fast_running; then be=fast; running=true; fi
+  fi
+  if guest_is_up; then ssh_ok=true; fi
+  if ui_running; then ui_ok=true; fi
+  if [[ "$ssh_ok" == true ]]; then
+    if guest_ssh "command -v docker >/dev/null" >/dev/null 2>&1; then docker_ok=true; fi
+    if guest_ssh "systemctl is-active --quiet discord-bot.service || docker ps --format '{{.Names}}' | grep -q ." >/dev/null 2>&1; then
+      bot_ok=true
+    fi
+  fi
+  local uptime=""
+  if [[ "$ssh_ok" == true ]]; then
+    uptime="$(guest_ssh "awk '{print int(\$1)}' /proc/uptime" 2>/dev/null || true)"
+  fi
+  python3 - "$be" "$running" "$ssh_ok" "$docker_ok" "$bot_ok" "$ui_ok" "$uptime" \
+    "$RAM_MB" "$CPUS" "$DISK_GB" "$SSH_PORT" "$UI_PORT" "${BOT_PANEL_PORT:-}" "${BOT_DIR:-}" <<'PY'
+import json, sys
+keys = [
+    "backend", "running", "ssh", "docker", "bot", "ui", "uptime_sec",
+    "ram_mb", "cpus", "disk_gb", "ssh_port", "ui_port", "panel_port", "bot_dir",
+]
+vals = sys.argv[1:]
+data = dict(zip(keys, vals))
+for k in ("running", "ssh", "docker", "bot", "ui"):
+    data[k] = data[k] == "true"
+for k in ("ram_mb", "cpus", "disk_gb", "ssh_port", "ui_port"):
+    data[k] = int(data[k] or 0)
+data["uptime_sec"] = int(data["uptime_sec"] or 0)
+print(json.dumps(data))
+PY
+}
+
+cmd_status() {
+  if [[ "${1:-}" == "--json" ]]; then
+    status_json
+    return
+  fi
+  local be
+  be="$(active_backend)"
+  printf 'backend   %s\n' "$be"
+  printf 'kvm       %s\n' "$(qemu_running && echo up || echo down)"
+  printf 'fast      %s\n' "$(fast_running && echo up || echo down)"
+  printf 'ssh       %s\n' "$(guest_is_up && echo up || echo down)"
+  printf 'cockpit   http://127.0.0.1:%s (%s)\n' "$UI_PORT" "$(ui_running && echo up || echo down)"
+  if [[ -n "${BOT_PANEL_PORT}" ]]; then
+    printf 'panel     http://127.0.0.1:%s\n' "$BOT_PANEL_PORT"
+  else
+    printf 'panel     (not configured)\n'
+  fi
+}
+
+cmd_logs() {
+  if [[ -f "$LOG_FILE" ]]; then
+    tail -n 40 "$LOG_FILE"
+  fi
+  if [[ -f "$STATE_DIR/kvm/serial.log" ]]; then
+    echo "--- serial ---"
+    tail -n 20 "$STATE_DIR/kvm/serial.log"
+  fi
+  if command -v docker >/dev/null 2>&1 && fast_running; then
+    echo "--- docker ---"
+    docker logs --tail 20 fakevps 2>/dev/null || true
+  fi
+}
+
+cmd_ssh() {
+  if [[ "${1:-}" == "--" ]]; then
+    shift
+  fi
+  guest_ssh "$@"
+}
+
+cmd_ui() {
+  ui_start
+  local url="http://127.0.0.1:${UI_PORT}"
+  printf '%s\n' "$url"
+  open_url "$url"
+}
+
+cmd_panel() {
+  if [[ -z "${BOT_PANEL_PORT}" ]]; then
+    printf 'No BOT_PANEL_PORT set — this bot has no forwarded web UI.\n' >&2
+    return 1
+  fi
+  local url="http://127.0.0.1:${BOT_PANEL_PORT}"
+  printf '%s\n' "$url"
+  open_url "$url"
+}
+
+cmd_attach() {
+  local dir="${1:-}"
+  [[ -n "$dir" ]] || die "usage: ./fakevps attach /path/to/bot"
+  dir="$(cd "$dir" && pwd)"
+  write_config_key BOT_DIR "$dir"
+  BOT_DIR="$dir"
+  log "BOT_DIR=$dir"
+  if guest_is_up; then
+    push_provision_scripts
+    provision_bot
+  else
+    log "node is down — bot will deploy on next ./fakevps up"
+  fi
+}
+
+cmd_sync() {
+  [[ -n "${BOT_DIR}" ]] || die "BOT_DIR is empty — ./fakevps attach <dir> first"
+  guest_is_up || die "node is down"
+  sync_bot_tree "$BOT_DIR"
+}
+
+cmd_reset() {
+  cmd_down || true
+  qemu_reset_disk
+  fast_reset
+  rm -f "$(marker_path)"
+  log "reset complete — next up is a fresh node"
+}
+
+cmd_install_service() {
+  local unit_dir="$HOME/.config/systemd/user"
+  mkdir -p "$unit_dir"
+  sed "s|@FAKEVPS_ROOT@|${FAKEVPS_ROOT}|g" \
+    "$FAKEVPS_ROOT/contrib/fakevps.service" >"$unit_dir/fakevps.service"
+  systemctl --user daemon-reload
+  printf 'Installed. Enable with:\n  systemctl --user enable --now fakevps\n'
+}
+
+main() {
+  load_config
+  ensure_dirs
+  local cmd="${1:-}"
+  shift || true
+  case "$cmd" in
+    up) cmd_up "$@" ;;
+    down) cmd_down "$@" ;;
+    status) cmd_status "$@" ;;
+    logs) cmd_logs "$@" ;;
+    ssh) cmd_ssh "$@" ;;
+    ui) cmd_ui "$@" ;;
+    panel) cmd_panel "$@" ;;
+    attach) cmd_attach "$@" ;;
+    sync) cmd_sync "$@" ;;
+    reset) cmd_reset "$@" ;;
+    install-service) cmd_install_service "$@" ;;
+    -h|--help|help|"") usage ;;
+    *) die "unknown command: $cmd" ;;
+  esac
+}
+
+main "$@"
