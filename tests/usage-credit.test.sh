@@ -34,4 +34,14 @@ if grep -q 'private for now' "$ROOT/SECURITY.md"; then
   echo "FAIL SECURITY still says private for now" >&2
   exit 1
 fi
+if grep -qE '\*\*Required:\*\*|\*\*Obligatoire' "$ROOT/README.md"; then
+  echo "FAIL README still treats attribution as required" >&2
+  exit 1
+fi
+if grep -qE 'You must keep|Every copy or fork MUST' "$ROOT/LICENSE"; then
+  echo "FAIL LICENSE still treats attribution as required" >&2
+  exit 1
+fi
+grep -q 'requested, not required' "$ROOT/LICENSE" \
+  || { echo "FAIL LICENSE missing requested-not-required" >&2; exit 1; }
 echo "usage/credit/origin tests passed"
