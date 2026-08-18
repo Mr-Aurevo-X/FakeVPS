@@ -2,6 +2,11 @@
 
 All notable changes to FakeVPS. Based on FakeVPS — https://github.com/Mr-Aurevo-X/FakeVPS
 
+## 0.3.2 — 2026-08-18
+
+### Changed
+- README, CONTRIBUTING, and SECURITY describe a **public snapshot**: fork and modify your own repo; this origin tree will not be developed further. Author note (CachyOS, Cursor) added.
+
 ## 0.3.1 — 2026-08-18
 
 ### Added

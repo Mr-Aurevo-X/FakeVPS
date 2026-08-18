@@ -45,10 +45,10 @@ The public artifact is the **git repository**, not a zip of the working folder. 
 
 ### Reporting a vulnerability
 
-This GitHub repository is **private** for now.
+This GitHub repository is a **public snapshot**. It may not receive a patch.
 
-- Open a **GitHub issue** on the private `Mr-Aurevo-X/FakeVPS` repo (preferred).
-- When the project is public, use a **private GitHub security advisory** instead of a public issue.
+- Prefer a **private GitHub security advisory** on `Mr-Aurevo-X/FakeVPS` instead of a public issue.
+- If you need a fix, fork and patch **your** copy.
 - No email is required. Do not paste live tokens, `config.env`, or `.env` contents in the report.
 
 ---
@@ -90,8 +90,8 @@ L’artefact public, c’est le **dépôt git**, pas un zip du dossier de travai
 
 ### Signaler une faille
 
-Le dépôt GitHub est **privé** pour le moment.
+Ce dépôt GitHub est un **instantané public**. Il peut ne pas recevoir de correctif.
 
-- Ouvre une **issue GitHub** sur le dépôt privé `Mr-Aurevo-X/FakeVPS`.
-- Quand le projet sera public, utilise un **avis de sécurité GitHub privé** plutôt qu’une issue publique.
-- Aucun e-mail n’est exigé. N’inclus pas de jeton, de `config.env` ni de `.env` dans le signalement.
+- Préfère un **avis de sécurité GitHub privé** sur `Mr-Aurevo-X/FakeVPS` plutôt qu'une issue publique.
+- Si tu as besoin d'un correctif, forke et patch **ta** copie.
+- Aucun e-mail n'est exigé. N'inclus pas de jeton, de `config.env` ni de `.env` dans le signalement.

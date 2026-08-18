@@ -1,5 +1,6 @@
 config.env
 state/
+.git-rewrite/
 profiles/*
 !profiles/example.env.example
 secrets/*
