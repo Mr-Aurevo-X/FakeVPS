@@ -79,5 +79,6 @@ grep -q 'safe_browse_path' "$ROOT/lib/ui_server.py" || fail "ui_server.py lacks 
 grep -q 'btn-browse' "$ROOT/ui/index.html" || fail "index.html lacks the browse button"
 grep -q 'loadBrowse' "$ROOT/ui/app.js" || fail "app.js lacks the browse logic"
 grep -q 'diag.disk-full.t' "$ROOT/ui/app.js" || fail "app.js lacks the disk-full diagnostic"
+grep -q 'tests/fixtures/node-bot' "$ROOT/.github/workflows/checks.yml" || fail "CI boot-fast does not attach the node-bot fixture"
 
 echo "deploy-guards tests passed"

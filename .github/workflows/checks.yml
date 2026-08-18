@@ -42,6 +42,14 @@ jobs:
           python3 -c "import json,sys; s=json.load(open('/tmp/status.json')); sys.exit(0 if s.get('ssh') else 1)"
       - name: SSH round-trip
         run: ./fakevps ssh -- 'echo guest-ok && docker --version'
+      - name: Attach fixture bot
+        run: |
+          set -euo pipefail
+          mkdir -p secrets
+          printf 'DISCORD_TOKEN=ci-dummy-token\n' > secrets/discord.env
+          ./fakevps attach tests/fixtures/node-bot 2>&1 | tee /tmp/attach.log
+          grep -q 'healthcheck OK' /tmp/attach.log
+          ./fakevps ssh -- 'systemctl is-active discord-bot'
       - name: Ephemeral shutdown
         run: |
           set -euo pipefail

@@ -2,6 +2,6 @@
   "name": "fakevps-fixture-node",
   "private": true,
   "scripts": {
-    "start": "node -e \"console.log('fixture')\""
+    "start": "node -e \"console.log('fixture-up'); setInterval(() => {}, 60000)\""
   }
 }
