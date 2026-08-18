@@ -2,6 +2,22 @@
 
 All notable changes to FakeVPS. Based on FakeVPS — https://github.com/Mr-Aurevo-X/FakeVPS
 
+## 0.3.0 — 2026-08-18
+
+### Added
+- `fakevps.bot.yml` `fallback:` (`none` default, or `node`) so compose→Node is opt-in.
+- Status JSON `disk_envelope_gb` / `disk_host_backed`; cockpit labels the 40 GB figure as an envelope and warns when Docker images exceed it.
+- CI `boot-fast` **attaches** `tests/fixtures/node-bot` and requires `healthcheck OK`.
+- Cockpit banner when the backend is `fast`.
+
+### Changed
+- A failed or bot-less compose deploy **exits** instead of silently starting Node.
+- Successful attaches prune the guest build cache and dangling images.
+- **`--fast` is the default** (`./fakevps up`). Use `./fakevps up --kvm` for isolation.
+
+### Frozen
+- No new CLI commands or cockpit panels until attach CI stays green. See CONTRIBUTING.
+
 ## 0.2.0 — 2026-08-18
 
 ### Added

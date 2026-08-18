@@ -84,5 +84,6 @@ grep -q 'BACKEND=fast' "$ROOT/lib/common.sh" || fail "common.sh default BACKEND 
 grep -q 'banner.fast' "$ROOT/ui/app.js" || fail "app.js lacks the fast-mode banner"
 grep -q 'id="fast-banner"' "$ROOT/ui/index.html" || fail "index.html lacks the fast-mode banner"
 grep -q 'tests/fixtures/node-bot' "$ROOT/.github/workflows/checks.yml" || fail "CI boot-fast does not attach the node-bot fixture"
+grep -q '0.3 freeze' "$ROOT/CONTRIBUTING.md" || fail "CONTRIBUTING.md missing the 0.3 freeze"
 
 echo "deploy-guards tests passed"
