@@ -316,8 +316,10 @@ cmd_attach() {
   if guest_is_up; then
     push_provision_scripts
     provision_bot || die "bot deploy failed — fix the errors above, then ./fakevps attach again"
-  else
+  elif auto_deploy_enabled; then
     log "node is down — bot will deploy on next ./fakevps up"
+  else
+    log "node is down — ./fakevps up then ./fakevps attach <dir> (AUTO_DEPLOY=false)"
   fi
   printf '  Cockpit  http://127.0.0.1:%s\n' "$UI_PORT"
 }

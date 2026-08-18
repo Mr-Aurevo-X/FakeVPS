@@ -46,6 +46,9 @@ else
   printf '%s\n' "$out" | grep -q 'path has spaces' || fail "no space hint (got: $out)"
 fi
 
+grep -q 'node is down — ./fakevps up then ./fakevps attach' "$ROOT/fakevps" \
+  || fail "attach-when-down still claims auto-deploy under AUTO_DEPLOY=false"
+
 # Attaching a folder with no recognizable bot content must be refused.
 tmp="$(mktemp -d "$ROOT/state/empty-bot-XXXX")"
 if out="$("$ROOT/fakevps" attach "$tmp" 2>&1)"; then
