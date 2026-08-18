@@ -40,7 +40,9 @@ case "$backing" in
     ;;
 esac
 log "docker storage-driver=$driver (backing=$backing)"
-printf '%s\n' "{\"storage-driver\":\"${driver}\",\"features\":{\"containerd-snapshotter\":false}}" >/etc/docker/daemon.json
+# Keep guest docker0 off 172.16/12 so the host can attach this
+# container to a compose network (Postgres published on 127.0.0.1).
+printf '%s\n' "{\"storage-driver\":\"${driver}\",\"features\":{\"containerd-snapshotter\":false},\"bip\":\"10.255.0.1/24\",\"default-address-pools\":[{\"base\":\"10.255.16.0/20\",\"size\":24}]}" >/etc/docker/daemon.json
 systemctl enable docker >/dev/null 2>&1 || true
 systemctl restart docker >/dev/null 2>&1 || systemctl start docker >/dev/null 2>&1 || true
 

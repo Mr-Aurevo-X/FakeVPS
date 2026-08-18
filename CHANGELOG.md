@@ -14,7 +14,7 @@ All notable changes to FakeVPS. Based on FakeVPS — https://github.com/Mr-Aurev
 - A failed or bot-less compose deploy **exits** instead of silently starting Node.
 - Successful attaches prune the guest build cache and dangling images.
 - **`--fast` is the default** (`./fakevps up`). Use `./fakevps up --kvm` for isolation.
-- `--fast` attach rewrites guest loopback `DATABASE_URL` / `REDIS_URL` / `LAVALINK_HOST` to the host compose service names and joins that Docker network. The host `.env` is unchanged.
+- `--fast` attach rewrites guest loopback `DATABASE_URL` / `REDIS_URL` / `LAVALINK_HOST` to the host compose service names and joins that Docker network. The host `.env` is unchanged. Guest `dockerd` uses `10.255.0.1/24` so its `docker0` does not collide with host compose (`172.16/12`).
 
 ### Frozen
 - No new CLI commands or cockpit panels until attach CI stays green. See CONTRIBUTING.

@@ -15,6 +15,10 @@ grep -q 'rewrite_injected_loopback_env "\$tmp"' "$ROOT/lib/ssh.sh" \
   || fail "inject_bot_env does not rewrite the temp env before scp"
 grep -q '^Path(dest).write_text' "$ROOT/lib/ssh.sh" \
   || fail "inject python write_text is indented (env file would not always be written)"
+grep -q 'ensure_fast_guest_docker_cidr' "$ROOT/lib/ssh.sh" \
+  || fail "ssh.sh does not move guest docker0 off 172.16/12 before joining"
+grep -q '10.255.0.1/24' "$ROOT/provision/01-packages.sh" \
+  || fail "01-packages.sh does not pin guest docker BIP away from host compose"
 
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT

@@ -253,11 +253,42 @@ _log_loopback_report() {
   fi
 }
 
+# Guest dockerd defaults to 172.18.0.0/16 once the host already took
+# 172.17.0.0/16. That collides with host compose bridges, so network
+# connect fails. Move docker0 into 10.255.0.0/16 before we join.
+ensure_fast_guest_docker_cidr() {
+  local docker0
+  command -v docker >/dev/null 2>&1 || return 0
+  [[ -n "${FAST_NAME:-}" ]] || return 0
+  command -v fast_running >/dev/null 2>&1 && fast_running || return 0
+  docker0="$(docker exec -u root "$FAST_NAME" ip -4 -o addr show docker0 2>/dev/null | awk '{print $4}' || true)"
+  case "$docker0" in
+    172.1[6-9].*|172.2[0-9].*|172.3[0-1].*) ;;
+    *) return 0 ;;
+  esac
+  log "guest docker0 ${docker0} overlaps host compose ranges — moving it to 10.255.0.1/24"
+  docker exec -i -u root "$FAST_NAME" python3 - <<'PY' || return 0
+import json
+from pathlib import Path
+path = Path("/etc/docker/daemon.json")
+data = json.loads(path.read_text() or "{}") if path.is_file() else {}
+data["bip"] = "10.255.0.1/24"
+data["default-address-pools"] = [{"base": "10.255.16.0/20", "size": 24}]
+data.setdefault("features", {})["containerd-snapshotter"] = False
+path.parent.mkdir(parents=True, exist_ok=True)
+path.write_text(json.dumps(data) + "\n")
+PY
+  docker exec -u root "$FAST_NAME" systemctl stop docker >/dev/null 2>&1 || true
+  docker exec -u root "$FAST_NAME" ip link delete docker0 >/dev/null 2>&1 || true
+  docker exec -u root "$FAST_NAME" systemctl start docker >/dev/null 2>&1 || true
+}
+
 _join_fast_loopback_networks() {
   local report="$1"
   local net out
   command -v docker >/dev/null 2>&1 || return 0
   [[ -n "${FAST_NAME:-}" ]] || return 0
+  ensure_fast_guest_docker_cidr
   while IFS= read -r net; do
     [[ -n "$net" ]] || continue
     if out="$(docker network connect "$net" "$FAST_NAME" 2>&1)"; then
@@ -265,7 +296,7 @@ _join_fast_loopback_networks() {
     elif [[ "$out" == *"already exists"* ]]; then
       :
     else
-      log "could not join Docker network ${net}"
+      log "could not join Docker network ${net}: ${out}"
     fi
   done < <(_loopback_report_field "$report" networks)
 }
