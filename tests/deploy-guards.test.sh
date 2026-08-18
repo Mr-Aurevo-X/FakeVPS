@@ -46,6 +46,17 @@ grep -q 'is_ephemeral' "$ROOT/lib/common.sh" || fail "common.sh lacks is_ephemer
 grep -q '^EPHEMERAL=false' "$ROOT/config.env.example" || fail "config.env.example lacks EPHEMERAL"
 grep -q '"ephemeral"' "$ROOT/fakevps" || fail "status_json does not expose ephemeral"
 
+# AUTO_DEPLOY=false must keep `up` from starting the bot on its own.
+grep -q 'auto_deploy_enabled' "$ROOT/lib/common.sh" || fail "common.sh lacks auto_deploy_enabled"
+grep -qc 'auto_deploy_enabled' "$ROOT/lib/provision.sh" >/dev/null || fail "provision.sh does not gate on AUTO_DEPLOY"
+grep -q '^AUTO_DEPLOY=true' "$ROOT/config.env.example" || fail "config.env.example lacks AUTO_DEPLOY"
+# shellcheck disable=SC1090
+source <(sed -n '/^auto_deploy_enabled()/,/^}$/p' "$ROOT/lib/common.sh")
+if AUTO_DEPLOY=false auto_deploy_enabled; then
+  fail "auto_deploy_enabled true despite AUTO_DEPLOY=false"
+fi
+AUTO_DEPLOY=true auto_deploy_enabled || fail "auto_deploy_enabled false despite AUTO_DEPLOY=true"
+
 # Cockpit folder picker.
 grep -q '/api/browse' "$ROOT/lib/ui_server.py" || fail "ui_server.py lacks /api/browse"
 grep -q 'safe_browse_path' "$ROOT/lib/ui_server.py" || fail "ui_server.py lacks safe_browse_path"

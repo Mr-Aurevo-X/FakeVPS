@@ -43,7 +43,11 @@ first_boot_provision() {
   # Host marker can be stale after the fast container is recreated.
   if guest_ssh "command -v docker >/dev/null 2>&1"; then
     if [[ -n "${BOT_DIR}" ]]; then
-      provision_bot || log "bot deploy failed — node stays up; retry ./fakevps attach <dir>"
+      if auto_deploy_enabled; then
+        provision_bot || log "bot deploy failed — node stays up; retry ./fakevps attach <dir>"
+      else
+        log "AUTO_DEPLOY=false — bot not started (./fakevps attach <dir> when you want it)"
+      fi
     fi
     return 0
   fi
@@ -57,8 +61,10 @@ first_boot_provision() {
   fi
   if [[ -z "${BOT_DIR}" ]]; then
     log "no bot attached — put token in secrets/discord.env then ./fakevps attach ~/bot"
-  else
+  elif auto_deploy_enabled; then
     provision_bot || log "bot deploy failed — packages are installed; retry ./fakevps attach <dir>"
+  else
+    log "AUTO_DEPLOY=false — bot not started (./fakevps attach <dir> when you want it)"
   fi
   date -Iseconds >"$(marker_path)"
   return 0

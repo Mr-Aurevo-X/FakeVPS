@@ -15,6 +15,7 @@ load_config() {
   BOT_PANEL_PORT=""
   BACKEND=kvm
   EPHEMERAL=false
+  AUTO_DEPLOY=true
 
   if [[ -f "$FAKEVPS_ROOT/config.env" ]]; then
     set -a
@@ -110,6 +111,13 @@ is_ephemeral() {
   case "${EPHEMERAL:-false}" in
     true|1|yes|on) return 0 ;;
     *) return 1 ;;
+  esac
+}
+
+auto_deploy_enabled() {
+  case "${AUTO_DEPLOY:-true}" in
+    false|0|no|off) return 1 ;;
+    *) return 0 ;;
   esac
 }
 
