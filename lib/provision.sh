@@ -25,7 +25,7 @@ provision_bot() {
   sync_bot_tree "$BOT_DIR"
   inject_bot_env
   log "auto-deploy bot"
-  guest_ssh "sudo BOT_RUNTIME='${BOT_RUNTIME}' APP_DIR=/home/ubuntu/app bash /home/ubuntu/fakevps-provision/02-bot.sh"
+  guest_ssh "sudo BOT_RUNTIME='${BOT_RUNTIME}' BOT_PANEL_PORT='${BOT_PANEL_PORT}' APP_DIR=/home/ubuntu/app bash /home/ubuntu/fakevps-provision/02-bot.sh"
 }
 
 provision_all() {

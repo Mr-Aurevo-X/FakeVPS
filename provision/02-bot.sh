@@ -18,12 +18,109 @@ has_token() {
   [[ -f "$APP/.env" ]] && grep -qE '^DISCORD_TOKEN=.+' "$APP/.env"
 }
 
+yaml_nested_get() {
+  local manifest="$1" parent="$2" child="$3"
+  awk -v parent="$parent" -v child="$child" '
+    $0 ~ "^" parent ":" { inb=1; next }
+    inb && /^[^[:space:]#]/ { inb=0 }
+    inb {
+      line=$0
+      sub(/^[[:space:]]+/, "", line)
+      if (line ~ "^" child ":") {
+        sub("^" child ":[[:space:]]*", "", line)
+        sub(/[[:space:]]+#.*$/, "", line)
+        gsub(/"/, "", line)
+        gsub(/\047/, "", line)
+        print line
+        exit
+      }
+    }
+  ' "$manifest"
+}
+
 yaml_get() {
   local key="$1"
   local manifest="$APP/fakevps.bot.yml"
   [[ -f "$manifest" ]] || return 0
+  if [[ "$key" == *.* ]]; then
+    yaml_nested_get "$manifest" "${key%%.*}" "${key#*.}"
+    return 0
+  fi
   sed -n "s/^${key}:[[:space:]]*//p" "$manifest" | sed 's/[[:space:]]*#.*//' | tr -d '"' | tr -d "'" | head -1
 }
+
+panel_wanted() {
+  [[ -n "${BOT_PANEL_PORT:-}" && "${BOT_PANEL_PORT}" =~ ^[0-9]+$ ]] || return 1
+  local cmd
+  cmd="$(yaml_get panel.start || true)"
+  [[ -n "$cmd" ]]
+}
+
+write_panel_unit() {
+  local dest="$1"
+  local exec_start="$2"
+  cat >"$dest" <<EOF
+[Unit]
+Description=Bot web panel (FakeVPS)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=${APP}
+EnvironmentFile=-${APP}/.env
+Environment=CI=true
+Environment=npm_config_update_notifier=false
+Environment=PATH=/usr/local/bin:/usr/bin:/bin
+Environment=PORT=${BOT_PANEL_PORT}
+ExecStart=${exec_start}
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+EOF
+}
+
+maybe_install_panel() {
+  local unit_dir dest panel_cmd exec_start
+  unit_dir="${SYSTEMD_UNIT_DIR:-/etc/systemd/system}"
+  dest="${unit_dir}/bot-panel.service"
+  panel_cmd="$(yaml_get panel.start || true)"
+  if ! panel_wanted; then
+    if [[ -f "$dest" ]]; then
+      if [[ "${SYSTEMD_SKIP_CTL:-}" != "1" ]]; then
+        systemctl disable --now bot-panel.service >/dev/null 2>&1 || true
+      fi
+      rm -f "$dest"
+      if [[ "${SYSTEMD_SKIP_CTL:-}" != "1" ]]; then
+        systemctl daemon-reload || true
+      fi
+    fi
+    return 0
+  fi
+  mkdir -p "$unit_dir"
+  exec_start="/bin/bash -lc 'cd ${APP} && ${panel_cmd}'"
+  write_panel_unit "$dest" "$exec_start"
+  log "installing bot-panel.service"
+  if [[ "${SYSTEMD_SKIP_CTL:-}" == "1" ]]; then
+    return 0
+  fi
+  case "$panel_cmd" in
+    *pnpm*|*npm*|*npx*|*yarn*|*node*)
+      ensure_node || { log "panel start needs Node — install failed"; return 1; }
+      ;;
+  esac
+  systemctl daemon-reload
+  systemctl enable bot-panel.service
+  # enable --now does not bounce an already-active unit (stale ExecStart).
+  systemctl restart bot-panel.service
+}
+
+# If this attach does not want a panel, drop a leftover unit even when we
+# exit early (no token, unknown runtime, failed compose/build).
+trap 'panel_wanted || maybe_install_panel || true' EXIT
 
 rt="$("$SCRIPT_DIR/detect-runtime.sh" "$APP" "$RUNTIME")"
 log "runtime=$rt"
@@ -361,6 +458,35 @@ bot_process_up() {
   systemctl is-active --quiet discord-bot.service 2>/dev/null || compose_has_bot_container
 }
 
+panel_process_up() {
+  systemctl is-active --quiet bot-panel.service 2>/dev/null
+}
+
+panel_healthcheck() {
+  local tries=0
+  if ! panel_wanted; then
+    return 0
+  fi
+  log "healthcheck: waiting for the panel process"
+  sleep 6
+  while (( tries < 8 )); do
+    if panel_process_up; then
+      sleep 4
+      if panel_process_up; then
+        log "healthcheck OK — the panel process is up and stayed up"
+        return 0
+      fi
+      log "healthcheck: the panel started then died — likely a crash-loop"
+    fi
+    sleep 2
+    tries=$((tries + 1))
+  done
+  log "healthcheck FAILED — no stable panel process; last logs:"
+  journalctl -u bot-panel -n 25 --no-pager 2>/dev/null || true
+  log "panel deploy failed the healthcheck — fix the errors above, then ./fakevps attach again"
+  return 1
+}
+
 healthcheck() {
   local tries=0
   log "healthcheck: waiting for the bot process"
@@ -370,7 +496,8 @@ healthcheck() {
       sleep 4
       if bot_process_up; then
         log "healthcheck OK — the bot process is up and stayed up"
-        return 0
+        panel_healthcheck
+        return $?
       fi
       log "healthcheck: the bot started then died — likely a crash-loop"
     fi
@@ -384,6 +511,7 @@ healthcheck() {
   return 1
 }
 
+maybe_install_panel || exit 1
 healthcheck || exit 1
 log "pruning dangling docker images and build cache"
 docker builder prune -af >/dev/null 2>&1 || true

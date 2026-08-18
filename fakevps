@@ -342,10 +342,25 @@ cmd_restart_bot() {
   guest_ssh bash -s <<'EOF'
 set -euo pipefail
 APP=/home/ubuntu/app
+bot_restarted=0
+panel_restarted=0
 if systemctl is-active --quiet discord-bot.service \
   || systemctl is-enabled --quiet discord-bot.service 2>/dev/null; then
   sudo systemctl restart discord-bot.service
   echo "restarted discord-bot.service"
+  bot_restarted=1
+fi
+if systemctl is-active --quiet bot-panel.service \
+  || systemctl is-enabled --quiet bot-panel.service 2>/dev/null; then
+  if sudo systemctl restart bot-panel.service; then
+    echo "restarted bot-panel.service"
+    panel_restarted=1
+  else
+    echo "bot-panel.service restart failed" >&2
+  fi
+fi
+# Panel-only systemd must not skip a Compose/Docker bot.
+if [[ "$bot_restarted" -eq 1 ]]; then
   exit 0
 fi
 cd "$APP"
@@ -359,6 +374,9 @@ done
 if docker ps -aq --filter name=fakevps-bot | grep -q .; then
   docker restart fakevps-bot
   echo "restarted fakevps-bot"
+  exit 0
+fi
+if [[ "$panel_restarted" -eq 1 ]]; then
   exit 0
 fi
 echo "no bot service to restart" >&2

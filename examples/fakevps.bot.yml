@@ -13,4 +13,6 @@ runtime: auto
 # systemd ExecStart when runtime is node or python (or fallback: node).
 # start: npm start
 
-# panel_port: 3000
+# Opt-in web panel (also needs BOT_PANEL_PORT on the host). Separate systemd unit.
+# panel:
+#   start: npm run panel

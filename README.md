@@ -90,11 +90,13 @@ runtime: compose          # or node | docker | python | auto
 compose_file: docker-compose.yml
 fallback: none            # node = allow compose then Node (opt-in)
 start: npm start
+panel:
+  start: npm run panel   # optional; needs BOT_PANEL_PORT
 ```
 
   A compose file that fails (or has no `bot`/`worker`/`discord` container) does **not** start Node unless `fallback: node` (or `runtime: node`) is set.
 - **Monorepos** — the root `build:ci` / `build` script is used so workspace packages compile in order. If the build fails, no service is installed and `attach` reports the failure.
-- Set `BOT_PANEL_PORT=3000` in `config.env` to expose the bot's own web UI on `http://127.0.0.1:3000`.
+- Set `BOT_PANEL_PORT=3000` in `config.env` to forward the bot's own web UI on `http://127.0.0.1:3000`. The guest process starts only if `fakevps.bot.yml` also has `panel.start` (otherwise the forward stays idle).
 
 ### Cockpit
 
@@ -115,7 +117,7 @@ start: npm start
 | `SSH_PORT` / `UI_PORT` | `2222` / `8787` | Host ports (loopback) |
 | `BOT_DIR` | empty | Attached bot folder (set by `attach`) |
 | `BOT_RUNTIME` | `auto` | Force `compose`/`docker`/`node`/`python` |
-| `BOT_PANEL_PORT` | empty | Forward the bot's web UI |
+| `BOT_PANEL_PORT` | empty | Forward the bot's web UI (`panel.start` starts the process) |
 | `EPHEMERAL` | `false` | `true` = every `down` erases all stored state |
 
 **Ephemeral mode** — with `EPHEMERAL=true` (or `./fakevps down --wipe`), shutdown deletes the guest disk (bot code and injected `.env` included), the fast Docker graph, logs and caches. Only `secrets/` and the host SSH key remain. The next `up` re-provisions from scratch.
@@ -217,11 +219,13 @@ runtime: compose          # ou node | docker | python | auto
 compose_file: docker-compose.yml
 fallback: none            # node = autoriser compose puis Node (opt-in)
 start: npm start
+panel:
+  start: npm run panel   # optionnel ; nécessite BOT_PANEL_PORT
 ```
 
   Un Compose qui échoue (ou sans conteneur `bot`/`worker`/`discord`) **ne lance pas** Node, sauf `fallback: node` (ou `runtime: node`).
 - **Monorepos** — le script racine `build:ci` / `build` compile les packages workspace dans l'ordre. Si le build échoue, aucun service n'est installé et `attach` remonte l'échec.
-- Mets `BOT_PANEL_PORT=3000` dans `config.env` pour exposer l'UI web du bot sur `http://127.0.0.1:3000`.
+- Mets `BOT_PANEL_PORT=3000` dans `config.env` pour forwarder l'UI web du bot sur `http://127.0.0.1:3000`. Le process guest ne part que si `fakevps.bot.yml` a aussi `panel.start` (sinon le forward reste vide).
 
 ### Cockpit
 
@@ -242,7 +246,7 @@ start: npm start
 | `SSH_PORT` / `UI_PORT` | `2222` / `8787` | Ports hôte (loopback) |
 | `BOT_DIR` | vide | Dossier du bot attaché (rempli par `attach`) |
 | `BOT_RUNTIME` | `auto` | Forcer `compose`/`docker`/`node`/`python` |
-| `BOT_PANEL_PORT` | vide | Exposer l'UI web du bot |
+| `BOT_PANEL_PORT` | vide | Exposer l'UI web du bot (`panel.start` lance le process) |
 | `EPHEMERAL` | `false` | `true` = chaque `down` efface tout l'état stocké |
 
 **Mode éphémère** — avec `EPHEMERAL=true` (ou `./fakevps down --wipe`), l'extinction supprime le disque du guest (code du bot et `.env` injecté compris), le graph Docker du mode fast, les journaux et les caches. Seuls `secrets/` et la clé SSH de l'hôte restent. Le prochain `up` re-provisionne tout.

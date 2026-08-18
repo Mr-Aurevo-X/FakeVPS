@@ -2,6 +2,11 @@
 
 All notable changes to FakeVPS. Based on FakeVPS — https://github.com/Mr-Aurevo-X/FakeVPS
 
+## 0.3.1 — 2026-08-18
+
+### Added
+- When `BOT_PANEL_PORT` is set **and** `fakevps.bot.yml` has `panel.start`, attach starts a separate `bot-panel.service` (the port forward already existed; the process was missing). `restart-bot` restarts that unit too.
+
 ## 0.3.0 — 2026-08-18
 
 ### Added
