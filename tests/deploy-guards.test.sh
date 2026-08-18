@@ -84,7 +84,8 @@ grep -q 'BACKEND=fast' "$ROOT/lib/common.sh" || fail "common.sh default BACKEND 
 grep -q 'banner.fast' "$ROOT/ui/app.js" || fail "app.js lacks the fast-mode banner"
 grep -q 'id="fast-banner"' "$ROOT/ui/index.html" || fail "index.html lacks the fast-mode banner"
 grep -q 'tests/fixtures/node-bot' "$ROOT/.github/workflows/checks.yml" || fail "CI boot-fast does not attach the node-bot fixture"
-grep -q '0.3 freeze' "$ROOT/CONTRIBUTING.md" || fail "CONTRIBUTING.md missing the 0.3 freeze"
+grep -q '1.0 final' "$ROOT/CONTRIBUTING.md" || fail "CONTRIBUTING.md missing the 1.0 final"
+grep -q '0.3 freeze' "$ROOT/CONTRIBUTING.md" || fail "CONTRIBUTING.md missing the 0.3 freeze history"
 grep -q 'rewrite_injected_loopback_env' "$ROOT/lib/ssh.sh" \
   || fail "ssh.sh does not rewrite loopback URLs on inject"
 grep -q 'rewrite_loopback_env.py' "$ROOT/lib/ssh.sh" \

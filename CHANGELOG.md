@@ -2,6 +2,14 @@
 
 All notable changes to FakeVPS. Based on FakeVPS — https://github.com/Mr-Aurevo-X/FakeVPS
 
+## 1.0.0 — 2026-08-18
+
+Final origin release. Take this tag or fork it. Anything that differs from this 1.0.0 is not the author's responsibility.
+
+### Changed
+- Version is **1.0.0**. This origin repository will not be developed further.
+- Docs and license state that downstream changes are on the fork author, not on Mr-Aurevo-X.
+
 ## 0.3.2 — 2026-08-18
 
 ### Changed

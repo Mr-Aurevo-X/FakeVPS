@@ -4,9 +4,9 @@
 
 Run a **local** Ubuntu node that behaves like a mid-range paid VPS — 6 GB RAM, 4 vCPU, 40 GB disk, SSH, systemd, Docker inside the guest — and rehearse a real deploy before renting a box. No bot is bundled: attach **any** Discord bot (Node, Python, Compose, Dockerfile).
 
-> **Public snapshot (0.3.2).** This origin repository is finished. Fork it, reuse it, change it on **your** GitHub — not here. Pull requests and issues on this repo will not be maintained. Please keep a trace of the original project.
+> **1.0.0 final.** Take this release or fork it and change **your** copy. Anything that differs from this 1.0.0 is not the author's responsibility. This origin repository will not be developed further. Please keep a trace of the original project.
 >
-> **Instantané public (0.3.2).** Ce dépôt d'origine est terminé. Forkez, réutilisez, modifiez **votre** copie — pas celle-ci. Les PR et issues ici ne seront pas traitées. Merci d'en garder une trace.
+> **1.0.0 finale.** Prenez cette release ou forkez et modifiez **votre** copie. Tout ce qui diffère de cette 1.0.0 ne m'incombe plus. Ce dépôt d'origine ne sera plus développé. Merci d'en garder une trace.
 
 [English](#english) · [Français](#français)
 
@@ -16,7 +16,7 @@ Run a **local** Ubuntu node that behaves like a mid-range paid VPS — 6 GB RAM,
 
 ### A note from Mr-Aurevo-X
 
-I built FakeVPS in August 2026 on CachyOS, inside [Cursor](https://cursor.com), because I wanted a local Ubuntu node that felt like a cheap VPS — SSH, systemd, Docker — so I could rehearse a Discord bot deploy before paying for a box. That is how I work: Cursor builds, I do the QA. This tree is the snapshot I am putting on the public internet. I will not keep changing **this** repository. Fork it onto your own GitHub, break it, rebuild it. If you mention the origin, leave this line as-is: `Based on FakeVPS — https://github.com/Mr-Aurevo-X/FakeVPS`. Thank you for keeping a trace.
+I built FakeVPS in August 2026 on CachyOS, inside [Cursor](https://cursor.com), because I wanted a local Ubuntu node that felt like a cheap VPS — SSH, systemd, Docker — so I could rehearse a Discord bot deploy before paying for a box. That is how I work: Cursor builds, I do the QA. This tree is **1.0.0 final**. I will not keep changing **this** repository. Take the release, or fork it onto your own GitHub and change it as you like. Anything that differs from this 1.0.0 is not my responsibility. If you mention the origin, leave this line as-is: `Based on FakeVPS — https://github.com/Mr-Aurevo-X/FakeVPS`. Thank you for keeping a trace.
 
 — [Mr-Aurevo-X](https://github.com/Mr-Aurevo-X)
 
@@ -162,7 +162,8 @@ Details: [SECURITY.md](SECURITY.md).
 Custom terms — see [LICENSE](LICENSE).
 
 - **Allowed:** use, copy, modify, run, including commercial projects — on **your** fork or private copy.
-- **This repository:** public snapshot. It will not be modified. Open your own repo; do not treat this one as an upstream.
+- **This repository:** **1.0.0 final.** Take the release or fork it. Do not treat this repo as an upstream.
+- **After 1.0.0:** anything that differs from this tree (your fork, your patches, your breakage) is not Mr-Aurevo-X's responsibility.
 - **Asked, not required:** keep a trace of the original project. If you mention it, use `Based on FakeVPS — https://github.com/Mr-Aurevo-X/FakeVPS` as-is — no extra wording on that line. You may add your own notice below.
 
 Copyright (c) 2026 **Mr-Aurevo-X**.
@@ -173,7 +174,7 @@ Copyright (c) 2026 **Mr-Aurevo-X**.
 
 ### Mot de Mr-Aurevo-X
 
-J'ai écrit FakeVPS en août 2026 sur CachyOS, dans [Cursor](https://cursor.com), parce que je voulais un nœud Ubuntu local qui ait l'air d'un VPS pas cher — SSH, systemd, Docker — pour répéter le déploiement d'un bot Discord avant de payer une machine. C'est ma façon de travailler : Cursor construit, je fais la QA. Cet arbre est l'instantané que je mets sur internet. Je ne modifierai plus **ce** dépôt. Forkez-le sur votre GitHub, cassez-le, reconstruisez-le. Si vous citez l'origine, laissez cette ligne telle quelle : `Based on FakeVPS — https://github.com/Mr-Aurevo-X/FakeVPS`. Merci d'en garder une trace.
+J'ai écrit FakeVPS en août 2026 sur CachyOS, dans [Cursor](https://cursor.com), parce que je voulais un nœud Ubuntu local qui ait l'air d'un VPS pas cher — SSH, systemd, Docker — pour répéter le déploiement d'un bot Discord avant de payer une machine. C'est ma façon de travailler : Cursor construit, je fais la QA. Cet arbre est la **1.0.0 finale**. Je ne modifierai plus **ce** dépôt. Prenez la release, ou forkez-le sur votre GitHub et changez-le à votre guise. Tout ce qui diffère de cette 1.0.0 ne m'incombe plus. Si vous citez l'origine, laissez cette ligne telle quelle : `Based on FakeVPS — https://github.com/Mr-Aurevo-X/FakeVPS`. Merci d'en garder une trace.
 
 — [Mr-Aurevo-X](https://github.com/Mr-Aurevo-X)
 
@@ -319,7 +320,8 @@ Détails : [SECURITY.md](SECURITY.md).
 Termes personnalisés — voir [LICENSE](LICENSE).
 
 - **Autorisé :** utiliser, copier, modifier, exécuter, y compris en commercial — sur **votre** fork ou copie privée.
-- **Ce dépôt :** instantané public. Il ne sera plus modifié. Ouvrez le vôtre ; ne traitez pas celui-ci comme un upstream.
+- **Ce dépôt :** **1.0.0 finale.** Prenez la release ou forkez. Ne traitez pas ce repo comme un upstream.
+- **Après la 1.0.0 :** tout ce qui diffère de cet arbre (votre fork, vos patches, vos casses) ne m'incombe plus.
 - **Demandé, pas obligatoire :** garder une trace du projet d'origine. Si vous le citez, utilisez `Based on FakeVPS — https://github.com/Mr-Aurevo-X/FakeVPS` telle quelle — sans rien ajouter sur cette ligne. Vous pouvez mettre votre mention en dessous. Merci d'en garder une trace.
 
 Copyright (c) 2026 **Mr-Aurevo-X**.

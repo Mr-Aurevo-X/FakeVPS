@@ -6,7 +6,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 fail() { echo "FAIL $*" >&2; exit 1; }
 
 ver="$("$ROOT/fakevps" --version)"
-printf '%s\n' "$ver" | grep -qE '^FakeVPS [0-9]+\.[0-9]+\.[0-9]+' || fail "--version has no semver"
+printf '%s\n' "$ver" | grep -qE '^FakeVPS 1\.0\.0$' || fail "--version is not 1.0.0"
 printf '%s\n' "$ver" | grep -q 'https://github.com/Mr-Aurevo-X/FakeVPS' || fail "--version missing origin URL"
 
 help_out="$("$ROOT/fakevps" --help)"

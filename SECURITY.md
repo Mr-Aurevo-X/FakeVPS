@@ -45,7 +45,7 @@ The public artifact is the **git repository**, not a zip of the working folder. 
 
 ### Reporting a vulnerability
 
-This GitHub repository is a **public snapshot**. It may not receive a patch.
+This GitHub repository is **1.0.0 final**. It will not receive a patch from the author. Anything that differs from this 1.0.0 is not the author's responsibility.
 
 - Prefer a **private GitHub security advisory** on `Mr-Aurevo-X/FakeVPS` instead of a public issue.
 - If you need a fix, fork and patch **your** copy.
@@ -90,7 +90,7 @@ L’artefact public, c’est le **dépôt git**, pas un zip du dossier de travai
 
 ### Signaler une faille
 
-Ce dépôt GitHub est un **instantané public**. Il peut ne pas recevoir de correctif.
+Ce dépôt GitHub est la **1.0.0 finale**. L'auteur n'y publiera pas de correctif. Tout ce qui diffère de cette 1.0.0 ne m'incombe plus.
 
 - Préfère un **avis de sécurité GitHub privé** sur `Mr-Aurevo-X/FakeVPS` plutôt qu'une issue publique.
 - Si tu as besoin d'un correctif, forke et patch **ta** copie.

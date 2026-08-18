@@ -22,8 +22,10 @@ grep -q 'Google Fonts\|fonts.googleapis.com\|fonts.gstatic.com' "$ROOT/ui/index.
   && { echo "FAIL index.html still phones home for fonts" >&2; exit 1; }
 grep -q 'aucune collecte' "$ROOT/ui/index.html" \
   || { echo "FAIL footer missing privacy line" >&2; exit 1; }
-grep -q 'Public snapshot' "$ROOT/README.md" \
-  || { echo "FAIL README missing public snapshot" >&2; exit 1; }
+grep -q '1.0.0 final' "$ROOT/README.md" \
+  || { echo "FAIL README missing 1.0.0 final" >&2; exit 1; }
+grep -q 'not the author' "$ROOT/README.md" \
+  || { echo "FAIL README missing not-author-responsibility" >&2; exit 1; }
 grep -q 'your own GitHub' "$ROOT/README.md" \
   || { echo "FAIL README missing fork-your-own-repo" >&2; exit 1; }
 if grep -q 'This repository is \*\*private\*\*' "$ROOT/CONTRIBUTING.md"; then
