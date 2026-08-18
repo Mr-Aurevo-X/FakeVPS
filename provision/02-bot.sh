@@ -385,4 +385,7 @@ healthcheck() {
 }
 
 healthcheck || exit 1
+log "pruning dangling docker images and build cache"
+docker builder prune -af >/dev/null 2>&1 || true
+docker image prune -f >/dev/null 2>&1 || true
 log "bot deploy complete"

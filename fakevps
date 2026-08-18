@@ -224,6 +224,8 @@ host_rt = (os.environ.get("FAKEVPS_RUNTIME") or "none").strip() or "none"
 data["runtime"] = host_rt if host_rt != "none" else (guest_rt or "none")
 data["bot_dir_display"] = os.environ.get("FAKEVPS_BOT_DIR_DISPLAY") or ""
 data.pop("bot_dir", None)
+data["disk_envelope_gb"] = int(data.get("disk_gb") or 0)
+data["disk_host_backed"] = data.get("backend") == "fast"
 print(json.dumps(data))
 PY
 }

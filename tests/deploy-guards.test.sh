@@ -70,10 +70,14 @@ if grep -n 'compose has no bot process — starting Node service' "$BOT" >/dev/n
     || fail "Node after compose is still unconditional"
 fi
 
+grep -q 'docker builder prune -af' "$BOT" || fail "02-bot.sh does not prune the build cache after deploy"
+grep -q 'docker image prune -f' "$BOT" || fail "02-bot.sh does not prune dangling images after deploy"
+
 # Cockpit folder picker.
 grep -q '/api/browse' "$ROOT/lib/ui_server.py" || fail "ui_server.py lacks /api/browse"
 grep -q 'safe_browse_path' "$ROOT/lib/ui_server.py" || fail "ui_server.py lacks safe_browse_path"
 grep -q 'btn-browse' "$ROOT/ui/index.html" || fail "index.html lacks the browse button"
 grep -q 'loadBrowse' "$ROOT/ui/app.js" || fail "app.js lacks the browse logic"
+grep -q 'diag.disk-full.t' "$ROOT/ui/app.js" || fail "app.js lacks the disk-full diagnostic"
 
 echo "deploy-guards tests passed"

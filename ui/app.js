@@ -89,6 +89,8 @@ const I18N = {
     "token.absent": "absent",
     "measuring": "mesure…",
     "unit.gb": "Go",
+    "disk.envelope": "enveloppe",
+    "disk.host": "graph Docker sur l’hôte",
     "rate.b": "o/s",
     "rate.kb": "Ko/s",
     "rate.mb": "Mo/s",
@@ -115,7 +117,7 @@ const I18N = {
     "diag.dind.t": "Docker imbriqué refuse d’extraire une image",
     "diag.dind.d": "Overlay-sur-overlay (ou btrfs). Le nœud fast doit avoir son graph Docker sur l’hôte.",
     "diag.migrate.t": "La migrate Compose a échoué",
-    "diag.migrate.d": "L’image prod n’a parfois pas Prisma. FakeVPS bascule alors sur l’infra + systemd. Si le bot est encore rouge, regarde les logs.",
+    "diag.migrate.d": "L’image prod n’a parfois pas Prisma. Sans fallback: node dans fakevps.bot.yml, le déploiement s’arrête. Ajoute le manifeste ou corrige l’image migrate.",
     "diag.no-bot.t": "Aucun bot n’est attaché",
     "diag.no-bot.d": "Le VPS est vide. Attache un dossier. S’il y a un espace dans le chemin, passe par un lien.",
     "diag.bot-down.t": "Le bot est attaché mais pas lancé",
@@ -124,6 +126,8 @@ const I18N = {
     "diag.inside-guest.d": "Le prompt ubuntu@fakevps veut dire guest. ./fakevps attach se lance depuis le dossier FakeVPS sur l’hôte.",
     "diag.empty-app.t": "Le nœud ne contient aucun code de bot",
     "diag.empty-app.d": "runtime=none : /home/ubuntu/app est vide ou non reconnu — fréquent après une extinction en mode éphémère, qui efface tout. Ré-attache le dossier du bot pour le resynchroniser.",
+    "diag.disk-full.t": "Les images Docker dépassent l’enveloppe disque",
+    "diag.disk-full.d": "En mode fast le disque est le graph Docker sur l’hôte, pas une partition 40 Go. Le cache de build a gonflé. Un attach réussi prune déjà les couches orphelines ; sinon down --wipe.",
     "diag.ok.t": "Rien à signaler",
     "diag.ok.d": "Nœud en ligne. Les feux Santé sont verts, ou le nœud attend juste un bot.",
   },
@@ -193,6 +197,8 @@ const I18N = {
     "token.absent": "missing",
     "measuring": "measuring…",
     "unit.gb": "GB",
+    "disk.envelope": "envelope",
+    "disk.host": "host Docker graph",
     "rate.b": "B/s",
     "rate.kb": "KB/s",
     "rate.mb": "MB/s",
@@ -219,7 +225,7 @@ const I18N = {
     "diag.dind.t": "Nested Docker refuses to extract an image",
     "diag.dind.d": "Overlay-on-overlay (or btrfs). The fast node must keep its Docker graph on the host.",
     "diag.migrate.t": "The Compose migrate failed",
-    "diag.migrate.d": "The prod image sometimes lacks Prisma. FakeVPS then falls back to infra + systemd. If the bot is still red, check the logs.",
+    "diag.migrate.d": "The prod image sometimes lacks Prisma. Without fallback: node in fakevps.bot.yml the deploy stops. Add the manifest or fix the migrate image.",
     "diag.no-bot.t": "No bot is attached",
     "diag.no-bot.d": "The VPS is empty. Attach a folder. If the path has a space, use a symlink.",
     "diag.bot-down.t": "The bot is attached but not running",
@@ -228,6 +234,8 @@ const I18N = {
     "diag.inside-guest.d": "The ubuntu@fakevps prompt means guest. ./fakevps attach runs from the FakeVPS folder on the host.",
     "diag.empty-app.t": "The node holds no bot code",
     "diag.empty-app.d": "runtime=none: /home/ubuntu/app is empty or unrecognized — common after an ephemeral shutdown, which erases everything. Re-attach the bot folder to resync it.",
+    "diag.disk-full.t": "Docker images exceed the disk envelope",
+    "diag.disk-full.d": "On --fast the disk is the host Docker graph, not a 40 GB partition. Build cache piled up. A successful attach already prunes dangling layers; otherwise down --wipe.",
     "diag.ok.t": "Nothing to report",
     "diag.ok.d": "Node online. The health lights are green, or the node is just waiting for a bot.",
   },
@@ -419,7 +427,9 @@ function updateTelemetry(s, online) {
   const diskApp = Number(s.disk_app_gb) || 0;
   const diskDocker = Number(s.disk_docker_gb) || 0;
   const diskUsed = Number(s.disk_used_gb) || (diskApp + diskDocker) || 0;
-  const diskTotal = Number(s.disk_total_gb) || Number(s.disk_gb) || 0;
+  const diskTotal = Number(s.disk_envelope_gb) || Number(s.disk_total_gb) || Number(s.disk_gb) || 0;
+  const hostBacked = Boolean(s.disk_host_backed);
+  const diskHint = hostBacked ? ` (${tr("disk.envelope")})` : "";
   const ramPct = ramTotal ? (100 * ramUsed) / ramTotal : 0;
   const diskPct = diskTotal ? (100 * diskUsed) / diskTotal : 0;
   $("t-ram").textContent = online && ramTotal
@@ -435,7 +445,7 @@ function updateTelemetry(s, online) {
     ? "—"
     : s.disk_pending
       ? tr("measuring")
-      : `${diskDocker.toFixed(1)} / ${diskTotal || 40} ${tr("unit.gb")}`;
+      : `${diskDocker.toFixed(1)} / ${diskTotal || 40} ${tr("unit.gb")}${diskHint}`;
   $("t-ct").textContent = online ? String(s.containers ?? "—") : "—";
   $("t-pids").textContent = online && s.pids ? String(s.pids) : "—";
   $("t-rx").textContent = online ? fmtRate(s.net_rx_bps) : "—";
@@ -444,7 +454,8 @@ function updateTelemetry(s, online) {
     $("m-ram").textContent = `${(ramUsed / 1024).toFixed(1)} / ${Math.round(ramTotal / 1024)} ${tr("unit.gb")}`;
   }
   if (online && diskTotal && !s.disk_pending) {
-    $("m-disk").textContent = `${diskUsed.toFixed(1)} / ${Math.round(diskTotal)} ${tr("unit.gb")}`;
+    $("m-disk").textContent = `${diskUsed.toFixed(1)} / ${Math.round(diskTotal)} ${tr("unit.gb")}${diskHint}`;
+    $("m-disk").title = hostBacked ? tr("disk.host") : "";
   }
   if (online) {
     $("m-cpu").textContent = `${cpuPct.toFixed(0)}% · ${s.cpus || 4}`;
@@ -665,6 +676,17 @@ function diagnose(s) {
       title: tr("diag.empty-app.t"),
       detail: tr("diag.empty-app.d"),
       fix: "./fakevps attach \"$HOME/Discord Bot/MyBot\"",
+    });
+  }
+  const envelope = Number(s.disk_envelope_gb) || Number(s.disk_gb) || 40;
+  const dockerGb = Number(s.disk_docker_gb) || 0;
+  if (online && dockerGb > envelope) {
+    issues.push({
+      id: "disk-full",
+      level: "warn",
+      title: tr("diag.disk-full.t"),
+      detail: tr("diag.disk-full.d"),
+      fix: "./fakevps ssh -- 'docker builder prune -af && docker image prune -f'\n# or\n./fakevps down --wipe",
     });
   }
   if (online && !botDir) {

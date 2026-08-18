@@ -31,6 +31,14 @@ if not isinstance(data["token_present"], bool):
     raise SystemExit("FAIL token_present must be a bool")
 if not isinstance(data["bot_attached"], bool):
     raise SystemExit("FAIL bot_attached must be a bool")
+if "disk_host_backed" not in data:
+    raise SystemExit("FAIL missing disk_host_backed")
+if not isinstance(data["disk_host_backed"], bool):
+    raise SystemExit("FAIL disk_host_backed must be a bool")
+if "disk_envelope_gb" not in data:
+    raise SystemExit("FAIL missing disk_envelope_gb")
+if not isinstance(data["disk_envelope_gb"], int):
+    raise SystemExit("FAIL disk_envelope_gb must be an int")
 shown = str(data.get("bot_dir_display") or "")
 if shown.startswith("/home/") or shown.startswith("/Users/"):
     raise SystemExit("FAIL bot_dir_display looks like a raw home path")
