@@ -21,7 +21,7 @@ FakeVPS — rehearse a paid VPS locally
 Copyright (c) 2026 Mr-Aurevo-X
 Based on FakeVPS — https://github.com/Mr-Aurevo-X/FakeVPS
 
-  ./fakevps up [--fast]     Start the node + cockpit
+  ./fakevps up [--fast|--kvm]  Start the node + cockpit (default: fast)
   ./fakevps down [--wipe]   Stop node + cockpit (--wipe erases all stored state)
   ./fakevps status [--json]
   ./fakevps metrics         Envelope telemetry JSON (guest only)
@@ -42,7 +42,7 @@ Based on FakeVPS — https://github.com/Mr-Aurevo-X/FakeVPS
   ./fakevps -p <name> <command>   Use profile profiles/<name>.env
                                   (own state, ports, bot — see profiles/)
 
-Windows: use WSL2, then ./fakevps up --fast
+Windows: use WSL2, then ./fakevps up
 EOF
 }
 

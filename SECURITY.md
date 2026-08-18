@@ -24,9 +24,9 @@ The cockpit uses a **session token** (Jupyter-style): the server writes a random
 
 ### `--fast` is nearly host-root
 
-`./fakevps up --fast` starts a **privileged** Docker container with `cgroupns=host`. That is close to root on the host. Use it only on a machine you control. Do not expose the node. Do not run `--fast` on a shared computer.
+`--fast` is the **default** (`./fakevps up`). It starts a **privileged** Docker container with `cgroupns=host`. That is close to root on the host. Use it only on a machine you control. Do not expose the node. Do not run `--fast` on a shared computer.
 
-KVM (`./fakevps up`) is the stronger isolation story.
+KVM (`./fakevps up --kvm`) is the stronger isolation story.
 
 ### Guest package install (no `curl | bash`)
 
@@ -69,9 +69,9 @@ Le cockpit utilise un **jeton de session** (façon Jupyter) : le serveur écrit 
 
 ### `--fast` est presque root hôte
 
-`./fakevps up --fast` lance un conteneur Docker **privilégié** avec `cgroupns=host`. C’est proche du root de l’hôte. Uniquement sur une machine à toi. N’expose pas le nœud. Ne lance pas `--fast` sur un PC partagé.
+`--fast` est le **défaut** (`./fakevps up`). Il lance un conteneur Docker **privilégié** avec `cgroupns=host`. C’est proche du root de l’hôte. Uniquement sur une machine à toi. N’expose pas le nœud. Ne lance pas `--fast` sur un PC partagé.
 
-KVM (`./fakevps up`) isole mieux.
+KVM (`./fakevps up --kvm`) isole mieux.
 
 ### Paquets guest (pas de `curl | bash`)
 

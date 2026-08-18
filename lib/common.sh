@@ -13,7 +13,7 @@ load_config() {
   BOT_DIR=""
   BOT_RUNTIME=auto
   BOT_PANEL_PORT=""
-  BACKEND=kvm
+  BACKEND=fast
   EPHEMERAL=false
   AUTO_DEPLOY=true
 

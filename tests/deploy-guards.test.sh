@@ -79,6 +79,10 @@ grep -q 'safe_browse_path' "$ROOT/lib/ui_server.py" || fail "ui_server.py lacks 
 grep -q 'btn-browse' "$ROOT/ui/index.html" || fail "index.html lacks the browse button"
 grep -q 'loadBrowse' "$ROOT/ui/app.js" || fail "app.js lacks the browse logic"
 grep -q 'diag.disk-full.t' "$ROOT/ui/app.js" || fail "app.js lacks the disk-full diagnostic"
+grep -q '^BACKEND=fast' "$ROOT/config.env.example" || fail "config.env.example default BACKEND is not fast"
+grep -q 'BACKEND=fast' "$ROOT/lib/common.sh" || fail "common.sh default BACKEND is not fast"
+grep -q 'banner.fast' "$ROOT/ui/app.js" || fail "app.js lacks the fast-mode banner"
+grep -q 'id="fast-banner"' "$ROOT/ui/index.html" || fail "index.html lacks the fast-mode banner"
 grep -q 'tests/fixtures/node-bot' "$ROOT/.github/workflows/checks.yml" || fail "CI boot-fast does not attach the node-bot fixture"
 
 echo "deploy-guards tests passed"

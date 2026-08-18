@@ -26,6 +26,7 @@ const I18N = {
   fr: {
     "eyebrow": "Répétition locale",
     "tag": "Nœud Ubuntu · 6 Go · 4 vCPU",
+    "banner.fast": "Mode fast (défaut) : conteneur privilégié, disque = graph Docker sur l’hôte.",
     "tile.power": "Alimentation",
     "uptime.label": "Temps de marche",
     "btn.up": "Démarrer",
@@ -134,6 +135,7 @@ const I18N = {
   en: {
     "eyebrow": "Local rehearsal",
     "tag": "Ubuntu node · 6 GB · 4 vCPU",
+    "banner.fast": "Fast mode (default): privileged container, disk is the host Docker graph.",
     "tile.power": "Power",
     "uptime.label": "Uptime",
     "btn.up": "Start",
@@ -816,6 +818,7 @@ function render(s) {
   $("m-cpu").textContent = String(s.cpus || 4);
   $("m-disk").textContent = `${s.disk_gb || 40} ${tr("unit.gb")}`;
   $("m-be").textContent = s.backend || "—";
+  $("fast-banner").classList.toggle("hidden", s.backend !== "fast");
   updateTelemetry(s, online && !starting);
   $("ssh-cmd").textContent = `ssh -p ${s.ssh_port || 2222} ubuntu@127.0.0.1`;
   setHealth("h-ssh", s.ssh ? "ok" : s.running ? "warn" : "off");

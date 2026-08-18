@@ -14,14 +14,14 @@ Run a **local** Ubuntu node that behaves like a mid-range paid VPS — 6 GB RAM,
 
 One CLI (`./fakevps`), two backends, same ports:
 
-- `./fakevps up` — **KVM/QEMU** guest. Strongest isolation, needs `/dev/kvm`.
-- `./fakevps up --fast` — **privileged Docker container** with systemd. Faster iteration, default path on WSL2.
+- `./fakevps up` — **privileged Docker** guest (`--fast`, the default). Faster iteration. Disk is the host Docker graph (an envelope, not a 40 GB partition). Near host-root — machine you control only.
+- `./fakevps up --kvm` — **KVM/QEMU** guest. Strongest isolation, needs `/dev/kvm`.
 
 ```mermaid
 flowchart LR
     You[You] --> CLI["./fakevps CLI"]
-    CLI --> KVM["KVM guest (up)"]
-    CLI --> Fast["Docker guest (up --fast)"]
+    CLI --> Fast["Docker guest (up)"]
+    CLI --> KVM["KVM guest (up --kvm)"]
     KVM --> Guest["Ubuntu 24.04 · SSH · systemd · Docker"]
     Fast --> Guest
     Guest --> Cockpit["Cockpit 127.0.0.1:8787"]
@@ -32,13 +32,13 @@ Everything binds **127.0.0.1 only**: cockpit on `8787`, SSH on `2222`, optional 
 
 ### Linux
 
-Requirements: QEMU/KVM (`/dev/kvm`) for the default backend, or Docker for `--fast`.
+Requirements: Docker for the default backend, or QEMU/KVM (`/dev/kvm`) for `--kvm`.
 
 ```bash
 cp config.env.example config.env
-./fakevps up          # KVM
+./fakevps up          # fast (privileged Docker, default)
 # or
-./fakevps up --fast   # Docker systemd guest
+./fakevps up --kvm    # KVM guest
 ```
 
 ### Windows
@@ -47,14 +47,14 @@ FakeVPS runs inside **WSL2 + Ubuntu** (not in a VirtualBox/Hyper-V Linux VM).
 
 1. Give WSL2 enough RAM (the node wants 6 GB) in `%UserProfile%\.wslconfig`.
 2. Clone the repo inside the WSL filesystem and follow the Linux steps.
-3. Recommended backend: `./fakevps up --fast`.
+3. Default backend is already `./fakevps up` (`--fast`). Use `--kvm` only if `/dev/kvm` is available.
 4. Optional helper from Windows: `contrib/fakevps.bat` (it still runs the Linux CLI inside WSL).
 
 ### Commands
 
 | Command | What it does |
 |---------|--------------|
-| `./fakevps up [--fast]` | Start the node and the cockpit |
+| `./fakevps up [--fast|--kvm]` | Start the node and the cockpit (default: fast) |
 | `./fakevps down [--wipe]` | Stop everything; `--wipe` erases all stored state |
 | `./fakevps status [--json]` | Backend, SSH, cockpit, bot state |
 | `./fakevps ssh [-- cmd]` | Shell into the guest |
@@ -110,7 +110,7 @@ start: npm start
 
 | Key | Default | Meaning |
 |-----|---------|---------|
-| `BACKEND` | `kvm` | `kvm` or `fast` |
+| `BACKEND` | `fast` | `fast` (default, privileged Docker) or `kvm` |
 | `RAM_MB` / `CPUS` / `DISK_GB` | `6144` / `4` / `40` | Node envelope |
 | `SSH_PORT` / `UI_PORT` | `2222` / `8787` | Host ports (loopback) |
 | `BOT_DIR` | empty | Attached bot folder (set by `attach`) |
@@ -124,7 +124,7 @@ start: npm start
 
 - Everything binds `127.0.0.1`. The cockpit refuses non-loopback hosts and cross-site POSTs.
 - The author collects **nothing**: no analytics, no phone-home, no external fonts. Tokens stay on your machine.
-- `--fast` runs a **privileged** container — near host-root. Prefer KVM when isolation matters.
+- `--fast` is the **default** and runs a **privileged** container — near host-root. Prefer `./fakevps up --kvm` when isolation matters.
 - Never commit `secrets/discord.env`, `config.env`, or `state/`. The public artifact is the git repository, not a zip of the working folder.
 
 Details: [SECURITY.md](SECURITY.md).
@@ -141,14 +141,14 @@ Custom terms — see [LICENSE](LICENSE). **Allowed:** use, copy, modify, run, in
 
 Une CLI (`./fakevps`), deux moteurs, mêmes ports :
 
-- `./fakevps up` — guest **KVM/QEMU**. Isolation maximale, nécessite `/dev/kvm`.
-- `./fakevps up --fast` — **conteneur Docker privilégié** avec systemd. Plus rapide, chemin par défaut sous WSL2.
+- `./fakevps up` — guest **Docker privilégié** (`--fast`, le défaut). Plus rapide. Le disque est le graph Docker sur l’hôte (enveloppe, pas une partition 40 Go). Quasi root hôte — machine à toi uniquement.
+- `./fakevps up --kvm` — guest **KVM/QEMU**. Isolation maximale, nécessite `/dev/kvm`.
 
 ```mermaid
 flowchart LR
     Toi[Toi] --> CLI["CLI ./fakevps"]
-    CLI --> KVM["Guest KVM (up)"]
-    CLI --> Fast["Guest Docker (up --fast)"]
+    CLI --> Fast["Guest Docker (up)"]
+    CLI --> KVM["Guest KVM (up --kvm)"]
     KVM --> Guest["Ubuntu 24.04 · SSH · systemd · Docker"]
     Fast --> Guest
     Guest --> Cockpit["Cockpit 127.0.0.1:8787"]
@@ -159,13 +159,13 @@ Tout écoute en **127.0.0.1 uniquement** : cockpit sur `8787`, SSH sur `2222`, p
 
 ### Linux
 
-Prérequis : QEMU/KVM (`/dev/kvm`) pour le moteur par défaut, ou Docker pour `--fast`.
+Prérequis : Docker pour le moteur par défaut, ou QEMU/KVM (`/dev/kvm`) pour `--kvm`.
 
 ```bash
 cp config.env.example config.env
-./fakevps up          # KVM
+./fakevps up          # fast (Docker privilégié, défaut)
 # ou
-./fakevps up --fast   # guest Docker + systemd
+./fakevps up --kvm    # guest KVM
 ```
 
 ### Windows
@@ -174,14 +174,14 @@ FakeVPS tourne dans **WSL2 + Ubuntu** (pas dans une VM Linux VirtualBox/Hyper-V)
 
 1. Donne assez de RAM à WSL2 (le nœud veut 6 Go) dans `%UserProfile%\.wslconfig`.
 2. Clone le dépôt dans le système de fichiers WSL et suis les étapes Linux.
-3. Moteur conseillé : `./fakevps up --fast`.
+3. Le défaut est déjà `./fakevps up` (`--fast`). `--kvm` seulement si `/dev/kvm` est disponible.
 4. Aide optionnelle côté Windows : `contrib/fakevps.bat` (lance la CLI Linux dans WSL).
 
 ### Commandes
 
 | Commande | Rôle |
 |----------|------|
-| `./fakevps up [--fast]` | Démarrer le nœud et le cockpit |
+| `./fakevps up [--fast|--kvm]` | Démarrer le nœud et le cockpit (défaut : fast) |
 | `./fakevps down [--wipe]` | Tout arrêter ; `--wipe` efface tout l'état stocké |
 | `./fakevps status [--json]` | Moteur, SSH, cockpit, état du bot |
 | `./fakevps ssh [-- cmd]` | Shell dans le guest |
@@ -237,7 +237,7 @@ start: npm start
 
 | Clé | Défaut | Rôle |
 |-----|--------|------|
-| `BACKEND` | `kvm` | `kvm` ou `fast` |
+| `BACKEND` | `fast` | `fast` (défaut, Docker privilégié) ou `kvm` |
 | `RAM_MB` / `CPUS` / `DISK_GB` | `6144` / `4` / `40` | Enveloppe du nœud |
 | `SSH_PORT` / `UI_PORT` | `2222` / `8787` | Ports hôte (loopback) |
 | `BOT_DIR` | vide | Dossier du bot attaché (rempli par `attach`) |
@@ -251,7 +251,7 @@ start: npm start
 
 - Tout écoute sur `127.0.0.1`. Le cockpit refuse les hôtes non-loopback et les POST cross-site.
 - L'auteur **ne collecte rien** : pas d'analytics, pas d'appel réseau caché, pas de polices externes. Les jetons restent sur ta machine.
-- `--fast` lance un conteneur **privilégié** — quasi root sur l'hôte. Préfère KVM quand l'isolation compte.
+- `--fast` est le **défaut** et lance un conteneur **privilégié** — quasi root sur l'hôte. Préfère `./fakevps up --kvm` quand l'isolation compte.
 - Ne commite jamais `secrets/discord.env`, `config.env` ni `state/`. L'artefact public est le dépôt git, pas un zip du dossier de travail.
 
 Détails : [SECURITY.md](SECURITY.md).
