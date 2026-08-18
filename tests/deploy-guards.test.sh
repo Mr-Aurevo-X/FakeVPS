@@ -57,6 +57,19 @@ if AUTO_DEPLOY=false auto_deploy_enabled; then
 fi
 AUTO_DEPLOY=true auto_deploy_enabled || fail "auto_deploy_enabled false despite AUTO_DEPLOY=true"
 
+# Compose → Node fallback is opt-in via fakevps.bot.yml (`fallback: node`).
+grep -q 'yaml_get fallback' "$BOT" || fail "02-bot.sh does not read fallback from the manifest"
+grep -q 'add fallback: node' "$BOT" || fail "02-bot.sh lacks the fallback: node hint"
+if grep -q 'trying infra compose + Node' "$BOT"; then
+  grep -B 25 'trying infra compose + Node' "$BOT" | grep -q 'fallback_node' \
+    || fail "infra compose + Node fallback is not gated on fallback: node"
+fi
+# Silent auto-start of Node after a compose-without-bot must not remain unconditional.
+if grep -n 'compose has no bot process — starting Node service' "$BOT" >/dev/null; then
+  grep -B 20 'compose has no bot process — starting Node service' "$BOT" | grep -q 'fallback_node' \
+    || fail "Node after compose is still unconditional"
+fi
+
 # Cockpit folder picker.
 grep -q '/api/browse' "$ROOT/lib/ui_server.py" || fail "ui_server.py lacks /api/browse"
 grep -q 'safe_browse_path' "$ROOT/lib/ui_server.py" || fail "ui_server.py lacks safe_browse_path"

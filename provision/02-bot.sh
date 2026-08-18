@@ -40,6 +40,11 @@ fi
 
 start_cmd="$(yaml_get start || true)"
 compose_file="$(yaml_get compose_file || true)"
+fallback="$(yaml_get fallback || true)"
+case "${fallback:-none}" in
+  node) fallback_node=true ;;
+  *) fallback_node=false ;;
+esac
 
 install_node_unit() {
   local exec_start="$1"
@@ -287,21 +292,31 @@ case "$rt" in
         prod_ok=true
       fi
     else
-      log "compose $compose_file config invalid (missing env) — skipping it"
+      log "compose $compose_file config invalid (missing env)"
     fi
     if [[ "$prod_ok" != true ]]; then
-      log "compose $compose_file not deployed — trying infra compose + Node"
-      docker compose -f "$compose_file" down >/dev/null 2>&1 || true
-      if [[ -f "$APP/docker-compose.yml" && "$compose_file" != "docker-compose.yml" ]]; then
-        docker compose -f docker-compose.yml --env-file .env up -d --build || true
+      if [[ "$fallback_node" == true ]]; then
+        log "compose $compose_file not deployed — fallback: node — trying infra compose + Node"
+        docker compose -f "$compose_file" down >/dev/null 2>&1 || true
+        if [[ -f "$APP/docker-compose.yml" && "$compose_file" != "docker-compose.yml" ]]; then
+          docker compose -f docker-compose.yml --env-file .env up -d --build || true
+        fi
+      else
+        log "compose $compose_file failed — not falling back (add fallback: node or runtime: node to fakevps.bot.yml)"
+        exit 1
       fi
     fi
     if ! compose_has_bot_container && ! systemctl is-active --quiet discord-bot.service && [[ -f "$APP/package.json" ]]; then
-      log "compose has no bot process — starting Node service"
-      if [[ -f "$APP/docker-compose.yml" ]]; then
-        docker compose -f docker-compose.yml --env-file .env up -d || true
+      if [[ "$fallback_node" == true ]]; then
+        log "compose has no bot process — starting Node service"
+        if [[ -f "$APP/docker-compose.yml" ]]; then
+          docker compose -f docker-compose.yml --env-file .env up -d || true
+        fi
+        start_node_bot
+      else
+        log "compose has no bot process — add fallback: node (or runtime: node) to fakevps.bot.yml"
+        exit 1
       fi
-      start_node_bot
     fi
     ;;
   docker)

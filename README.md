@@ -83,7 +83,16 @@ cp secrets/discord.env.example secrets/discord.env
 Or click **Parcourir** in the cockpit's Bot tile and pick the folder — no path typing, no quoting issues.
 
 - **`.env` injection** — attach copies `BOT_DIR/.env` if present, then overlays non-empty keys from `secrets/discord.env`. The guest file is `/home/ubuntu/app/.env` (mode `600`). The cockpit only ever shows token **present/absent**, never the value. If a required key is missing (`DATABASE_URL`, Compose variables…), the deploy stops early with the exact list.
-- **Runtime detection** (first match wins): `fakevps.bot.yml` → Compose → Dockerfile → Node → Python. Copy [examples/fakevps.bot.yml](examples/fakevps.bot.yml) into the bot repo to override (`runtime`, `compose_file`, `start`, `panel_port`).
+- **Runtime detection** (first match wins): `fakevps.bot.yml` → Compose → Dockerfile → Node → Python. Copy [examples/fakevps.bot.yml](examples/fakevps.bot.yml) into the bot repo to override.
+
+```yaml
+runtime: compose          # or node | docker | python | auto
+compose_file: docker-compose.yml
+fallback: none            # node = allow compose then Node (opt-in)
+start: npm start
+```
+
+  A compose file that fails (or has no `bot`/`worker`/`discord` container) does **not** start Node unless `fallback: node` (or `runtime: node`) is set.
 - **Monorepos** — the root `build:ci` / `build` script is used so workspace packages compile in order. If the build fails, no service is installed and `attach` reports the failure.
 - Set `BOT_PANEL_PORT=3000` in `config.env` to expose the bot's own web UI on `http://127.0.0.1:3000`.
 
@@ -201,7 +210,16 @@ cp secrets/discord.env.example secrets/discord.env
 Ou clique **Parcourir** dans la tuile Bot du cockpit et choisis le dossier — pas de chemin à taper, pas de souci d'espaces.
 
 - **Injection `.env`** — `attach` copie `BOT_DIR/.env` s'il existe, puis surcharge avec les clés non vides de `secrets/discord.env`. Côté guest : `/home/ubuntu/app/.env` (mode `600`). Le cockpit affiche seulement jeton **présent/absent**, jamais la valeur. S'il manque une clé requise (`DATABASE_URL`, variables Compose…), le déploiement s'arrête tôt avec la liste exacte.
-- **Détection du runtime** (premier match gagnant) : `fakevps.bot.yml` → Compose → Dockerfile → Node → Python. Copie [examples/fakevps.bot.yml](examples/fakevps.bot.yml) dans le repo du bot pour forcer (`runtime`, `compose_file`, `start`, `panel_port`).
+- **Détection du runtime** (premier match gagnant) : `fakevps.bot.yml` → Compose → Dockerfile → Node → Python. Copie [examples/fakevps.bot.yml](examples/fakevps.bot.yml) dans le repo du bot pour forcer.
+
+```yaml
+runtime: compose          # ou node | docker | python | auto
+compose_file: docker-compose.yml
+fallback: none            # node = autoriser compose puis Node (opt-in)
+start: npm start
+```
+
+  Un Compose qui échoue (ou sans conteneur `bot`/`worker`/`discord`) **ne lance pas** Node, sauf `fallback: node` (ou `runtime: node`).
 - **Monorepos** — le script racine `build:ci` / `build` compile les packages workspace dans l'ordre. Si le build échoue, aucun service n'est installé et `attach` remonte l'échec.
 - Mets `BOT_PANEL_PORT=3000` dans `config.env` pour exposer l'UI web du bot sur `http://127.0.0.1:3000`.
 

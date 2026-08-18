@@ -1,0 +1,7 @@
+{
+  "name": "fakevps-fixture-manifest-node",
+  "private": true,
+  "scripts": {
+    "start": "node -e \"setInterval(() => {}, 60000)\""
+  }
+}

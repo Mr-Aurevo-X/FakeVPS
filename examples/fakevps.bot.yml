@@ -1,9 +1,16 @@
-# Optional manifest. Copy into a Discord bot repo as fakevps.bot.yml
-# to override auto-detection.
+# Copy into a Discord bot repo as fakevps.bot.yml to override auto-detection.
+# Without this file, FakeVPS runs one detected strategy and fails loudly.
 
 runtime: auto
 # runtime: compose | docker | node | python
 
+# Relative to the bot root. Used when runtime is compose (or auto picks compose).
 # compose_file: docker-compose.yml
+
+# Opt-in only. Default is none: a failed compose deploy does not start Node.
+# fallback: node
+
+# systemd ExecStart when runtime is node or python (or fallback: node).
 # start: npm start
+
 # panel_port: 3000

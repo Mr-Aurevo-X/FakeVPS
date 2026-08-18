@@ -16,5 +16,6 @@ expect() {
 
 expect "$ROOT/tests/fixtures/node-bot" node
 expect "$ROOT/tests/fixtures/compose-bot" compose
+expect "$ROOT/tests/fixtures/manifest-node" node
 expect "$ROOT/examples" none
 echo "detect-runtime tests passed"
