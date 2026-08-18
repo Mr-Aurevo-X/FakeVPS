@@ -85,5 +85,9 @@ grep -q 'banner.fast' "$ROOT/ui/app.js" || fail "app.js lacks the fast-mode bann
 grep -q 'id="fast-banner"' "$ROOT/ui/index.html" || fail "index.html lacks the fast-mode banner"
 grep -q 'tests/fixtures/node-bot' "$ROOT/.github/workflows/checks.yml" || fail "CI boot-fast does not attach the node-bot fixture"
 grep -q '0.3 freeze' "$ROOT/CONTRIBUTING.md" || fail "CONTRIBUTING.md missing the 0.3 freeze"
+grep -q 'rewrite_injected_loopback_env' "$ROOT/lib/ssh.sh" \
+  || fail "ssh.sh does not rewrite loopback URLs on inject"
+grep -q 'rewrite_loopback_env.py' "$ROOT/lib/ssh.sh" \
+  || fail "ssh.sh does not call rewrite_loopback_env.py"
 
 echo "deploy-guards tests passed"

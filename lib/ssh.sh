@@ -224,6 +224,75 @@ sync_bot_tree() {
     || die "rsync to the guest failed — fix the errors above (nothing was deployed)"
 }
 
+# Host compose often publishes Postgres/Redis on 127.0.0.1. Copied as-is,
+# those URLs point at the guest. On --fast, map them to the publisher's
+# compose name and join that Docker network. Host .env is not modified.
+_loopback_report_field() {
+  local report="$1" field="$2"
+  printf '%s\n' "$report" | python3 -c '
+import json, sys
+field = sys.argv[1]
+try:
+    data = json.load(sys.stdin)
+except json.JSONDecodeError:
+    sys.exit(0)
+print("\n".join(str(item) for item in (data.get(field) or [])))
+' "$field"
+}
+
+_log_loopback_report() {
+  local report="$1"
+  local rewritten unresolved
+  rewritten="$(_loopback_report_field "$report" rewritten | paste -sd, -)"
+  unresolved="$(_loopback_report_field "$report" unresolved | paste -sd, -)"
+  if [[ -n "$rewritten" ]]; then
+    log "rewrote guest loopback ${rewritten} to host compose services"
+  fi
+  if [[ -n "$unresolved" ]]; then
+    log "guest ${unresolved} still uses localhost — no host container publishes that port"
+  fi
+}
+
+_join_fast_loopback_networks() {
+  local report="$1"
+  local net out
+  command -v docker >/dev/null 2>&1 || return 0
+  [[ -n "${FAST_NAME:-}" ]] || return 0
+  while IFS= read -r net; do
+    [[ -n "$net" ]] || continue
+    if out="$(docker network connect "$net" "$FAST_NAME" 2>&1)"; then
+      log "joined Docker network ${net} so the guest can reach host compose services"
+    elif [[ "$out" == *"already exists"* ]]; then
+      :
+    else
+      log "could not join Docker network ${net}"
+    fi
+  done < <(_loopback_report_field "$report" networks)
+}
+
+rewrite_injected_loopback_env() {
+  local env_file="$1"
+  local py="$FAKEVPS_ROOT/lib/rewrite_loopback_env.py"
+  local be report
+  [[ -f "$py" && -f "$env_file" ]] || return 0
+  be="$(active_backend 2>/dev/null || echo "${BACKEND:-fast}")"
+  if [[ "$be" == "fast" ]] && command -v fast_running >/dev/null 2>&1 && fast_running; then
+    if ! report="$(python3 "$py" --apply "$env_file" --discover-docker)"; then
+      log "could not rewrite loopback URLs for the guest — using host .env as-is"
+      return 0
+    fi
+    _join_fast_loopback_networks "$report"
+    _log_loopback_report "$report"
+    return 0
+  fi
+  if ! report="$(python3 "$py" --apply "$env_file")"; then
+    return 0
+  fi
+  if [[ -n "$(_loopback_report_field "$report" loopback)" ]]; then
+    log "DATABASE_URL/REDIS_URL use localhost — the guest cannot reach the host loopback (use --fast, or a hostname the guest can resolve)"
+  fi
+}
+
 inject_bot_env() {
   local dest_env="/home/ubuntu/app/.env"
   local bot_env=""
@@ -277,6 +346,7 @@ if not str(merged.get("DISCORD_CLIENT_SECRET", "")).strip():
 lines = [f"{key}={value}" for key, value in merged.items()]
 Path(dest).write_text("\n".join(lines) + ("\n" if lines else ""), encoding="utf-8")
 PY
+  rewrite_injected_loopback_env "$tmp"
   guest_ssh "sudo mkdir -p /home/ubuntu/app && sudo chown ubuntu:ubuntu /home/ubuntu/app"
   # shellcheck disable=SC2046
   if ! scp $(scp_opts) "$tmp" "${SSH_USER}@127.0.0.1:${dest_env}"; then
