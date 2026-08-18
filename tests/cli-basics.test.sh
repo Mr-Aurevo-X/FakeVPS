@@ -39,4 +39,21 @@ grep -q '\\"~/' "$ROOT/ui/app.js" && fail "quoted tilde back in app.js fix comma
 grep -q 'diag.empty-app.t' "$ROOT/ui/app.js" || fail "empty-app diagnostic missing"
 grep -q 'lastStatus.force_diag = false' "$ROOT/ui/app.js" || fail "force_diag one-shot reset missing"
 
+# Unquoted paths with spaces must be refused, not truncated.
+if out="$("$ROOT/fakevps" attach "$HOME/some" "dir/with space" 2>&1)"; then
+  fail "attach accepted a word-split path"
+else
+  printf '%s\n' "$out" | grep -q 'path has spaces' || fail "no space hint (got: $out)"
+fi
+
+# Attaching a folder with no recognizable bot content must be refused.
+tmp="$(mktemp -d "$ROOT/state/empty-bot-XXXX")"
+if out="$("$ROOT/fakevps" attach "$tmp" 2>&1)"; then
+  rmdir "$tmp"
+  fail "attach accepted an empty folder"
+else
+  rmdir "$tmp"
+  printf '%s\n' "$out" | grep -q 'no bot found' || fail "no empty-folder hint (got: $out)"
+fi
+
 echo "cli-basics tests passed"

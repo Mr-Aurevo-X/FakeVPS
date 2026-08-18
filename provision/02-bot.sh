@@ -150,6 +150,17 @@ PY
         log "DATABASE_URL missing from .env — skipping db:migrate (add it to secrets/discord.env, then attach again)"
       fi
     fi
+    # Without a generated Prisma client the query results type as `any` and
+    # strict builds explode with TS7006. Generate from the package that owns
+    # the schema — from the workspace root, pnpm writes the client into the
+    # wrong node_modules and the build still sees the stub.
+    local schema pkg_dir
+    while IFS= read -r schema; do
+      pkg_dir="$(dirname "$(dirname "$schema")")"
+      log "prisma generate ($(basename "$pkg_dir"))"
+      (cd "$pkg_dir" && sudo -u ubuntu env CI=true PATH="$PATH" \
+        pnpm exec prisma generate --schema "$schema") || true
+    done < <(find "$APP" -maxdepth 4 -name schema.prisma -not -path '*/node_modules/*' 2>/dev/null)
     # Monorepo: root build scripts compile workspace packages in dependency
     # order; a bare --filter build leaves @scope/* deps without dist.
     local build_ok=true
@@ -265,10 +276,14 @@ case "$rt" in
     if grep -qE '^[[:space:]]*profiles:' "$APP/$compose_file"; then
       extra+=(--profile music)
     fi
+    # Idempotent redeploys: stale containers from a previous run (same names,
+    # different labels) make `up` fail with "name already in use".
+    docker compose -f "$compose_file" --env-file .env down --remove-orphans >/dev/null 2>&1 || true
+    docker ps -a --format '{{.Names}}' | grep -E '^app-' | xargs -r docker rm -f >/dev/null 2>&1 || true
     prod_ok=false
     if compose_env_preflight "$compose_file"; then
       log "docker compose -f $compose_file ${extra[*]:-} up -d --build"
-      if docker compose -f "$compose_file" --env-file .env "${extra[@]}" up -d --build; then
+      if docker compose -f "$compose_file" --env-file .env "${extra[@]}" up -d --build --remove-orphans; then
         prod_ok=true
       fi
     else

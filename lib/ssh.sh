@@ -208,7 +208,11 @@ sync_bot_tree() {
   [[ -d "$src" ]] || die "BOT_DIR is not a directory: $(display_bot_dir "$src")"
   require_cmd rsync
   log "rsync bot → guest:/home/ubuntu/app"
-  guest_ssh "mkdir -p /home/ubuntu/app"
+  # Earlier deploys (compose, pnpm as root) can leave root-owned files in the
+  # app dir; take ownership back or every rsync fails with Permission denied.
+  guest_ssh "sudo mkdir -p /home/ubuntu/app && sudo chown -R ubuntu:ubuntu /home/ubuntu/app"
+  # Callers run inside `provision_bot || …`, which disables errexit — failures
+  # must be explicit or the deploy carries on with an empty app dir.
   rsync -az --delete \
     --exclude node_modules \
     --exclude .venv \
@@ -216,7 +220,8 @@ sync_bot_tree() {
     --exclude .env \
     --exclude .git \
     -e "ssh -i ${SSH_KEY} -p ${SSH_PORT} -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=${KNOWN_HOSTS} -o LogLevel=ERROR" \
-    "${src%/}/" "${SSH_USER}@127.0.0.1:/home/ubuntu/app/"
+    "${src%/}/" "${SSH_USER}@127.0.0.1:/home/ubuntu/app/" \
+    || die "rsync to the guest failed — fix the errors above (nothing was deployed)"
 }
 
 inject_bot_env() {
@@ -272,11 +277,14 @@ if not str(merged.get("DISCORD_CLIENT_SECRET", "")).strip():
 lines = [f"{key}={value}" for key, value in merged.items()]
 Path(dest).write_text("\n".join(lines) + ("\n" if lines else ""), encoding="utf-8")
 PY
-  guest_ssh "mkdir -p /home/ubuntu/app"
+  guest_ssh "sudo mkdir -p /home/ubuntu/app && sudo chown ubuntu:ubuntu /home/ubuntu/app"
   # shellcheck disable=SC2046
-  scp $(scp_opts) "$tmp" "${SSH_USER}@127.0.0.1:${dest_env}"
+  if ! scp $(scp_opts) "$tmp" "${SSH_USER}@127.0.0.1:${dest_env}"; then
+    rm -f "$tmp"
+    die "could not write ${dest_env} in the guest — fix the errors above"
+  fi
   rm -f "$tmp"
-  guest_ssh "chmod 600 $dest_env"
+  guest_ssh "chmod 600 $dest_env" || die "could not chmod ${dest_env} in the guest"
   if [[ -n "$bot_env" && -n "$secrets_env" ]]; then
     log "injected BOT_DIR/.env + secrets/discord.env → $dest_env"
   elif [[ -n "$bot_env" ]]; then
