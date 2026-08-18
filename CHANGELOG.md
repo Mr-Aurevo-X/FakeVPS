@@ -6,6 +6,7 @@ All notable changes to FakeVPS. Based on FakeVPS — https://github.com/Mr-Aurev
 
 ### Changed
 - README, CONTRIBUTING, and SECURITY describe a **public snapshot**: fork and modify your own repo; this origin tree will not be developed further. Author note (CachyOS, Cursor) added.
+- Cursor rules (`.cursor/`) stay local; they are not in the public tree.
 
 ## 0.3.1 — 2026-08-18
 
